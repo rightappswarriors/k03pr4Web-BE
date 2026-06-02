@@ -85,6 +85,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
+        validated_data["email"] = validated_data["email"].strip().lower()
+
         # 1. Extract JSON strings and Files
         store_json = validated_data.pop("store_details", None)
         company_json = validated_data.pop("company_details", None)

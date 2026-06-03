@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import check_password
 from django.core.mail import send_mail
 from django.conf import settings
 from rest_framework.permissions import AllowAny
@@ -11,6 +12,7 @@ from django.db import transaction
 from rest_framework.exceptions import ValidationError
 from django.db.models import Count, Q
 from django.utils.text import slugify
+from django.utils import timezone
 
 from .models import (
     User,
@@ -27,6 +29,7 @@ from .models import (
     Notification,
     Orgitemcategory,
     Courier,
+    Kompracustomer,
 )
 
 from .serializers import (
@@ -57,31 +60,79 @@ from .serializers import (
 
 # --- AUTHENTICATION ---
 
+def is_local_email_backend():
+    return settings.EMAIL_BACKEND == 'django.core.mail.backends.console.EmailBackend'
+
+
+def send_verification_code(user, is_resend=False):
+    otp_code = user.generate_otp()
+    subject = (
+        "Your new Kompra.ph verification code"
+        if is_resend
+        else "Verify your Kompra.ph account"
+    )
+    message = (
+        f"Hello {user.full_name},\n\n"
+        f"Your verification code is: {otp_code}\n\n"
+        "Please enter this code to activate your account."
+    )
+
+    send_mail(
+        subject,
+        message,
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+        fail_silently=False
+    )
+
+    return otp_code
+
+
+def append_dev_otp(payload, otp_code):
+    if is_local_email_backend():
+        payload["dev_otp"] = otp_code
+    return payload
+
+
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
-    def perform_create(self, serializer):
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        otp_code = user.generate_otp()
-
-        print(f"--- DEBUG: OTP for {user.email} is {otp_code} ---")
-
-        subject = "Verify your Kumpra.ph Account"
-        message = f"Hello {user.full_name},\n\nYour verification code is: {otp_code}\n\nPlease enter this code to activate your account."
 
         try:
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-                fail_silently=False
-            )
+            otp_code = send_verification_code(user)
         except Exception as e:
-            print(f"Email failed to send: {e}")
+            raise ValidationError({
+                "email_delivery": (
+                    "Account was not created because the verification email "
+                    "could not be sent. Please check the email SMTP settings."
+                )
+            }) from e
+
+        headers = self.get_success_headers(serializer.data)
+        response_data = append_dev_otp(serializer.data, otp_code)
+        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        user = serializer.save()
+
+        try:
+            send_verification_code(user)
+        except Exception as e:
+            raise ValidationError({
+                "email_delivery": (
+                    "Account was not created because the verification email "
+                    "could not be sent. Please check the email SMTP settings."
+                )
+            }) from e
 
 
 class ResendOTPView(APIView):
@@ -91,16 +142,23 @@ class ResendOTPView(APIView):
         email = request.data.get("email")
         try:
             user = User.objects.get(email=email, is_verified=False)
-            otp_code = user.generate_otp()
 
-            send_mail(
-                "Your New Kumpra.ph Verification Code",
-                f"Your new code is: {otp_code}",
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-                fail_silently=False
+            try:
+                otp_code = send_verification_code(user, is_resend=True)
+            except Exception as e:
+                return Response(
+                    {
+                        "error": (
+                            "Unable to send a new OTP right now. "
+                            "Please check the email SMTP settings."
+                        )
+                    },
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+            return Response(
+                append_dev_otp({"message": "New OTP sent."}, otp_code),
+                status=status.HTTP_200_OK,
             )
-            return Response({"message": "New OTP sent."}, status=status.HTTP_200_OK)
         except User.DoesNotExist:
             return Response({"error": "User not found or already verified."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -121,6 +179,10 @@ class VerifyEmailView(APIView):
                 user.is_verified = True
                 user.otp = None
                 user.save()
+                Kompracustomer.objects.filter(email__iexact=user.email).update(
+                    isverified=True,
+                    updatedat=timezone.now(),
+                )
                 return Response({
                     "message": "Email verified successfully.",
                     "is_verified": True
@@ -133,15 +195,70 @@ class VerifyEmailView(APIView):
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    def sync_customer_account(self, email, password):
+        try:
+            customer = Kompracustomer.objects.get(email__iexact=email, isactive=True)
+        except Kompracustomer.DoesNotExist:
+            return None
+
+        if not check_password(password, customer.passwordhash):
+            return None
+
+        phone = (customer.phone or "")[:11]
+        if not phone:
+            phone = "00000000000"
+
+        user, _ = User.objects.get_or_create(
+            email=email,
+            defaults={
+                "full_name": customer.fullname or email,
+                "contact_number": phone,
+                "role": "CUSTOMER",
+                "is_verified": customer.isverified,
+            },
+        )
+
+        user.full_name = user.full_name or customer.fullname or email
+        user.contact_number = user.contact_number or phone
+        user.role = user.role or "CUSTOMER"
+        user.is_verified = user.is_verified or customer.isverified
+        user.password = customer.passwordhash
+        user.save()
+
+        return authenticate(email=email, password=password)
+
     def post(self, request):
-        email = request.data.get("email")
+        email = (request.data.get("email") or "").strip().lower()
         password = request.data.get("password")
         user = authenticate(email=email, password=password)
 
+        if not user:
+            user = self.sync_customer_account(email, password)
+
         if user:
             if not user.is_verified:
+                try:
+                    otp_code = send_verification_code(user, is_resend=True)
+                except Exception:
+                    return Response(
+                        {
+                            "error": (
+                                "Please verify your email first, but we could not "
+                                "send a new OTP right now."
+                            ),
+                            "needs_verification": True,
+                        },
+                        status=status.HTTP_502_BAD_GATEWAY,
+                    )
+
                 return Response(
-                    {"error": "Please verify your email first.", "needs_verification": True},
+                    append_dev_otp(
+                        {
+                            "error": "Please verify your email first.",
+                            "needs_verification": True,
+                        },
+                        otp_code,
+                    ),
                     status=status.HTTP_403_FORBIDDEN
                 )
 

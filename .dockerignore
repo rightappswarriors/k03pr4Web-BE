@@ -2,20 +2,12 @@
 .git
 .gitignore
 
-# Python
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-.pytest_cache
-.coverage
-htmlcov
+# Build outputs
+dist
+coverage
 
-# Virtual environments
-venv
-.venv
+# Dependencies
+node_modules
 
 # IDE
 .idea
@@ -30,13 +22,9 @@ Thumbs.db
 # Media (optional - mount separately in production)
 media/profile_pics
 
-# Documentation
-*.md
-docs
-
 # CI/CD
 .github
 .gitlab-ci.yml
 
-# Environment - but not .env!
-.env.example
+# Environment
+.env

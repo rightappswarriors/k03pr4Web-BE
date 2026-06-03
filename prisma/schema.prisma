@@ -1,0 +1,18 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// This schema is intentionally minimal because the live PostgreSQL database
+// is not accessible from this machine yet.
+//
+// Once you have DB access:
+// 1. Set DATABASE_URL in .env.
+// 2. Run: npm run prisma:pull
+// 3. Run: npm run prisma:generate
+//
+// Prisma will replace this placeholder with models from the existing database.

@@ -1,13 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PoolClient } from "pg";
 import { parseBody } from "../common/validation";
-import { addCartSchema, updateCartSchema } from "../schemas/api.schemas";
 import { CustomerAuthService } from "./customer-auth.service";
 import { DatabaseService } from "./database.service";
+import { addCartSchema, updateCartSchema, switchOutletSchema } from "../schemas/api.schemas";
 
 @Injectable()
 export class CartService {
-  constructor(private readonly db: DatabaseService, private readonly customers: CustomerAuthService) {}
+  constructor(private readonly db: DatabaseService, private readonly customers: CustomerAuthService) { }
 
   async getOrCreateCart(userId: number, client?: PoolClient) {
     const runner: { query: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }> } =
@@ -124,5 +124,95 @@ export class CartService {
       total_amount: rows.reduce((sum, item) => sum + Number(item.subtotal), 0),
       created_at: cart.created_at, updated_at: cart.updated_at,
     };
+  }
+
+  async getCartItemOutlets(authorization: string | undefined, id: number) {
+    const user = await this.customers.currentUser(authorization);
+    const cart = await this.getOrCreateCart(user.id);
+
+    // Confirm the cart item belongs to this user, and find the underlying Item
+    const current = await this.db.query(
+      `SELECT ci.id, ci.product_id, ii."itemId" AS item_id
+     FROM api_cartitem ci
+     JOIN "InventoryItems" ii ON ii.id = ci.product_id
+     WHERE ci.id = $1 AND ci.cart_id = $2`,
+      [id, cart.id]
+    );
+    if (!current.rows[0]) throw new NotFoundException({ error: "Cart item not found." });
+
+    const itemId = current.rows[0].item_id;
+
+    // Find every outlet that carries this same Item, with stock + active status
+    const outlets = await this.db.query(
+      `
+    SELECT o.id AS outlet_id, o.name AS outlet_name, o.address AS outlet_address,
+           o.latitude, o.longitude, o."isActive" AS outlet_is_active,
+           ii.id AS inventory_item_id, ii.quantity, ii.price
+    FROM "InventoryItems" ii
+    JOIN "Inventory" inv ON inv.id = ii."inventoryId"
+    JOIN "Outlet" o ON o.id = inv."outletId"
+    WHERE ii."itemId" = $1
+    ORDER BY o.name
+    `,
+      [itemId]
+    );
+
+    return {
+      cart_item_id: id,
+      current_product_id: current.rows[0].product_id,
+      outlets: outlets.rows.map((row) => ({
+        outlet_id: row.outlet_id,
+        outlet_name: row.outlet_name,
+        outlet_address: row.outlet_address,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        is_active: row.outlet_is_active,
+        in_stock: Number(row.quantity) > 0,
+        available_quantity: Number(row.quantity),
+        inventory_item_id: row.inventory_item_id,
+        price: row.price,
+      })),
+    };
+  }
+
+  async switchCartItemOutlet(authorization: string | undefined, id: number, body: unknown) {
+    const user = await this.customers.currentUser(authorization);
+    const data = parseBody(switchOutletSchema, body);
+    const cart = await this.getOrCreateCart(user.id);
+
+    const current = await this.db.query(
+      `SELECT ci.id, ci.quantity, ii."itemId" AS item_id
+     FROM api_cartitem ci
+     JOIN "InventoryItems" ii ON ii.id = ci.product_id
+     WHERE ci.id = $1 AND ci.cart_id = $2`,
+      [id, cart.id]
+    );
+    if (!current.rows[0]) throw new NotFoundException({ error: "Cart item not found." });
+
+    const itemId = current.rows[0].item_id;
+    const quantity = Number(current.rows[0].quantity);
+
+    // Find this item's InventoryItems row at the requested outlet
+    const target = await this.db.query(
+      `SELECT ii.id, ii.price, ii.quantity, o."isActive" AS outlet_is_active
+     FROM "InventoryItems" ii
+     JOIN "Inventory" inv ON inv.id = ii."inventoryId"
+     JOIN "Outlet" o ON o.id = inv."outletId"
+     WHERE ii."itemId" = $1 AND inv."outletId" = $2
+     LIMIT 1`,
+      [itemId, data.outlet_id]
+    );
+    if (!target.rows[0]) throw new NotFoundException({ error: "This item is not carried by that outlet." });
+    if (!target.rows[0].outlet_is_active) throw new BadRequestException({ error: "Outlet is not currently active." });
+    if (Number(target.rows[0].quantity) < quantity) throw new BadRequestException({ error: "Insufficient stock at that outlet." });
+
+    await this.db.query(
+      `UPDATE api_cartitem
+     SET product_id = $1, branch_id = $2, unit_price = $3, subtotal = $4, updated_at = NOW()
+     WHERE id = $5`,
+      [target.rows[0].id, data.outlet_id, target.rows[0].price, Number(target.rows[0].price) * quantity, id]
+    );
+
+    return this.cartResponse(user.id);
   }
 }

@@ -60,8 +60,15 @@ export class OrderService {
     const createdOrders = [];
 
     for (const [outletId, groupItems] of groupedByOutlet) {
-      const outlet = await client.query(`SELECT id, name, address FROM "Outlet" WHERE id = $1`, [outletId]);
+      // NOTE: isActive is checked here so the backend independently enforces
+      // outlet availability, even if the frontend picker already filtered it out.
+      const outlet = await client.query(`SELECT id, name, address, "isActive" FROM "Outlet" WHERE id = $1`, [outletId]);
       if (!outlet.rows[0]) throw new BadRequestException(`Invalid outlet: ${outletId}`);
+      if (!outlet.rows[0].isActive) {
+        throw new BadRequestException(
+          `Outlet "${outlet.rows[0].name}" is currently unavailable. Please remove or switch items from that outlet.`
+        );
+      }
 
       const addressId = await this.ensureOrderAddress(client, customer.id, outlet.rows[0], data);
       const subtotal = groupItems.reduce((sum, item) => sum + Number(item.subtotal), 0);

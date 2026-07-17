@@ -73,3 +73,7 @@ export const profileSchema = z.object({
   gender: optionalText,
   date_of_birth: optionalText,
 });
+
+export const switchOutletSchema = z.object({
+  outlet_id: z.coerce.number().int().positive(),
+});

@@ -4,7 +4,7 @@ import { CartService } from "../services/cart.service";
 
 @Controller()
 export class CartController {
-  constructor(private readonly cartService: CartService) {}
+  constructor(private readonly cartService: CartService) { }
 
   @Get("cart")
   cart(@Headers("authorization") authorization?: string) {
@@ -24,5 +24,15 @@ export class CartController {
   @Delete("cart/item/:id/delete")
   removeCartItem(@Headers("authorization") authorization: string | undefined, @Param("id") id: string) {
     return this.cartService.removeCartItem(authorization, parsePositiveId(id));
+  }
+
+  @Get("cart/item/:id/outlets")
+  getCartItemOutlets(@Headers("authorization") authorization: string | undefined, @Param("id") id: string) {
+    return this.cartService.getCartItemOutlets(authorization, parsePositiveId(id));
+  }
+
+  @Patch("cart/item/:id/outlet")
+  switchCartItemOutlet(@Headers("authorization") authorization: string | undefined, @Param("id") id: string, @Body() body: unknown) {
+    return this.cartService.switchCartItemOutlet(authorization, parsePositiveId(id), body);
   }
 }

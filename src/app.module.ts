@@ -7,6 +7,7 @@ import { CartController } from "./controllers/cart.controller";
 import { CatalogController } from "./controllers/catalog.controller";
 import { NotificationController } from "./controllers/notification.controller";
 import { OrderController } from "./controllers/order.controller";
+import { WholesaleController } from "./controllers/wholesale.controller";
 import { CacheService } from "./common/cache.service";
 import { AddressService } from "./services/address.service";
 import { AuthService } from "./services/auth.service";
@@ -17,6 +18,7 @@ import { DatabaseService } from "./services/database.service";
 import { EmailService } from "./services/email.service";
 import { NotificationService } from "./services/notification.service";
 import { OrderService } from "./services/order.service";
+import { WholesaleService } from "./services/wholesale.service";
 import { PrismaService } from "./services/prisma.service";
 
 @Module({
@@ -35,6 +37,7 @@ import { PrismaService } from "./services/prisma.service";
     CatalogController,
     NotificationController,
     OrderController,
+    WholesaleController,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
@@ -48,6 +51,7 @@ import { PrismaService } from "./services/prisma.service";
     EmailService,
     NotificationService,
     OrderService,
+    WholesaleService,
     PrismaService,
   ],
 })

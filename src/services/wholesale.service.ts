@@ -363,7 +363,7 @@ export class WholesaleService {
 
     for (const tier of sorted) {
       const minOk = quantity >= tier.minQty;
-      const maxOk = tier.maxQty === null ? true : quantity <= tier.maxQty;
+      const maxOk = tier.maxQty == null ? true : quantity <= tier.maxQty;
       if (minOk && maxOk) {
         return tier;
       }
@@ -371,7 +371,7 @@ export class WholesaleService {
 
     // If no tier found and the highest tier has no maxQty, use it
     const highestTier = sorted[sorted.length - 1];
-    if (highestTier.maxQty === null && quantity >= highestTier.minQty) {
+    if (highestTier.maxQty == null && quantity >= highestTier.minQty) {
       return highestTier;
     }
 
@@ -527,12 +527,14 @@ export class WholesaleService {
     // Create PurchaseOrder
     const po = await this.prisma.purchaseOrder.create({
       data: {
+        id: `po-${Date.now()}`,
         poNumber: `PO-${Math.floor(100000 + Math.random() * 900000)}`,
         buyerOrgId: userOrg.orgId,
         supplierOrgId,
         status: "PENDING",
         totalAmount: quote.subtotal,
         deliveryOutletId: 1, // TODO: Resolve proper delivery outlet
+        updatedAt: new Date(),
       },
     });
 

@@ -151,6 +151,7 @@ export class SearchService {
       )
       SELECT
         i.id AS item_id, i.name AS item_name, i.image,
+        ic.name AS category_name, ic.icon AS category_icon,
         o."outletId" AS outlet_id, ot.name AS outlet_name, ot."bannerImage" AS outlet_photo,
         o.price, o.quantity,
         COALESCE(ip.order_count, 0) AS order_count,
@@ -158,6 +159,7 @@ export class SearchService {
       FROM "Item" i
       JOIN "OutletItemSearchIndex" o ON o."itemId" = i.id
       JOIN "Outlet" ot ON ot.id = o."outletId"
+      LEFT JOIN "ItemCategory" ic ON ic.id = i."categoryId"
       LEFT JOIN item_popularity ip ON ip."itemId" = i.id
       WHERE i.name ILIKE $${keywordParamIndex}
         AND o.quantity > 0
@@ -172,6 +174,11 @@ export class SearchService {
         item_id: row.item_id,
         item_name: row.item_name,
         image: row.image,
+        category_name: row.category_name,
+        // category_icon is often null right now — no ItemCategory.icon data
+        // has been populated yet. Frontend should fall back to a default
+        // icon when this is null; will auto-fill once icons get added.
+        category_icon: row.category_icon,
         outlet_id: row.outlet_id,
         outlet_name: row.outlet_name,
         outlet_photo: row.outlet_photo,
@@ -242,6 +249,7 @@ export class SearchService {
       )
       SELECT
         i.id AS item_id, i.name AS item_name, i.image,
+        ic.name AS category_name, ic.icon AS category_icon,
         o."outletId" AS outlet_id, ot.name AS outlet_name, ot."bannerImage" AS outlet_photo,
         o.price, o.quantity,
         COALESCE(ia.affinity_count, 0) AS affinity_count,
@@ -249,6 +257,7 @@ export class SearchService {
       FROM "Item" i
       JOIN "OutletItemSearchIndex" o ON o."itemId" = i.id
       JOIN "Outlet" ot ON ot.id = o."outletId"
+      LEFT JOIN "ItemCategory" ic ON ic.id = i."categoryId"
       LEFT JOIN item_affinity ia ON ia."itemId" = i.id
       WHERE i.name ILIKE $${keywordParamIndex}
         AND o.quantity > 0
@@ -263,6 +272,11 @@ export class SearchService {
         item_id: row.item_id,
         item_name: row.item_name,
         image: row.image,
+        category_name: row.category_name,
+        // category_icon is often null right now — no ItemCategory.icon data
+        // has been populated yet. Frontend should fall back to a default
+        // icon when this is null; will auto-fill once icons get added.
+        category_icon: row.category_icon,
         outlet_id: row.outlet_id,
         outlet_name: row.outlet_name,
         outlet_photo: row.outlet_photo,

@@ -150,7 +150,8 @@ export class SearchService {
         GROUP BY "itemId"
       )
       SELECT
-        i.id AS item_id, i.name AS item_name, i.image,
+        i.id AS item_id, o."inventoryItemId" AS inventory_item_id,
+        i.name AS item_name, i.image,
         ic.name AS category_name, ic.icon AS category_icon,
         o."outletId" AS outlet_id, ot.name AS outlet_name, ot."bannerImage" AS outlet_photo,
         o.price, o.quantity,
@@ -172,6 +173,10 @@ export class SearchService {
     return {
       items: result.rows.map((row) => ({
         item_id: row.item_id,
+        // inventory_item_id is what the product detail page and cart
+        // actually key off (see CatalogService.product -> WHERE ii.id = $1).
+        // item_id alone would point to the wrong route.
+        inventory_item_id: row.inventory_item_id,
         item_name: row.item_name,
         image: row.image,
         category_name: row.category_name,
@@ -248,7 +253,8 @@ export class SearchService {
         GROUP BY koi."itemId"
       )
       SELECT
-        i.id AS item_id, i.name AS item_name, i.image,
+        i.id AS item_id, o."inventoryItemId" AS inventory_item_id,
+        i.name AS item_name, i.image,
         ic.name AS category_name, ic.icon AS category_icon,
         o."outletId" AS outlet_id, ot.name AS outlet_name, ot."bannerImage" AS outlet_photo,
         o.price, o.quantity,
@@ -270,6 +276,10 @@ export class SearchService {
     return {
       items: result.rows.map((row) => ({
         item_id: row.item_id,
+        // inventory_item_id is what the product detail page and cart
+        // actually key off (see CatalogService.product -> WHERE ii.id = $1).
+        // item_id alone would point to the wrong route.
+        inventory_item_id: row.inventory_item_id,
         item_name: row.item_name,
         image: row.image,
         category_name: row.category_name,

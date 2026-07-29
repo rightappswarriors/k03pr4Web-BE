@@ -1,7 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, BadRequestException, } from "@nestjs/common";
 import * as crypto from "node:crypto";
 import * as jwt from "jsonwebtoken";
 import { DatabaseService } from "./database.service";
+import * as bcrypt from "bcrypt";
+import { PrismaService } from './prisma.service'
 
 export type AuthUser = {
   id: number;
@@ -16,12 +18,23 @@ export type AuthUser = {
   password: string;
 };
 
+export type AgentAuthPayload = {
+  agentId: string;
+  organizationId: number | null;
+  verificationStatus: string;
+  agentType: string;
+  email: string;
+};
+
 @Injectable()
 export class AuthService {
   private readonly jwtSecret =
     process.env.JWT_SECRET || process.env.SECRET_KEY || "kompra-local-dev-key";
 
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly prisma: PrismaService
+  ) {}
 
   normalizeEmail(email?: string) {
     return (email || "").trim().toLowerCase();
@@ -219,5 +232,130 @@ export class AuthService {
     const payload = this.verifyAccessToken(token);
     if (!payload?.user_id) return null;
     return this.findUserById(payload.user_id);
+  }
+
+  // ============================================
+  // Agent (Procurement Agent) Authentication
+  // ============================================
+
+  createAgentTokens(agent: { agentId: string; organizationId: number | null; verificationStatus: string; agentType: string; email: string }) {
+    const access = jwt.sign(
+      { agent_id: agent.agentId, organization_id: agent.organizationId, verification_status: agent.verificationStatus, agent_type: agent.agentType, email: agent.email, token_type: "access" },
+      this.jwtSecret,
+      { expiresIn: "1d" }
+    );
+    const refresh = jwt.sign(
+      { agent_id: agent.agentId, email: agent.email, token_type: "refresh" },
+      this.jwtSecret,
+      { expiresIn: "7d" }
+    );
+    return { access, refresh };
+  }
+
+  verifyAgentAccessToken(token?: string) {
+    if (!token) return null;
+    try {
+      const payload = jwt.verify(token, this.jwtSecret) as {
+        agent_id?: string;
+        token_type?: string;
+        organization_id?: number;
+        verification_status?: string;
+        agent_type?: string;
+        email?: string;
+      };
+      if (payload.token_type !== "access" || !payload.agent_id) return null;
+      return payload;
+    } catch {
+      return null;
+    }
+  }
+
+  async findAgentByEmail(email: string) {/**
+    const result = await this.db.query<any>(
+      `
+      SELECT id, email, fullname, phone, "passwordHash", "organizationId", "verificationStatus", "agentType"
+      FROM "Agent"
+      WHERE lower(email) = lower($1) AND "deletedAt" IS NULL
+      LIMIT 1
+      `,
+      [email]
+    );
+    return result.rows[0] || null; */
+
+    const result = await this.prisma.agent.findUnique({
+      where: {
+        email
+      }, select: {
+        email: true,
+        fullname: true,
+        phone: true,
+        passwordHash: true,
+        organizationId: true,
+        verificationStatus: true,
+        agentType: true,
+        id: true
+      }
+    })
+    if (process.env.NODE_ENV) {
+      console.log("[agent query result] agent:", result)
+    }
+    return result || null
+  }
+
+  async requireAgent(authorization?: string) {
+    const token = authorization?.replace(/^Bearer\s+/i, "");
+    const payload = this.verifyAgentAccessToken(token);
+    if (!payload?.agent_id) return null;
+    const agent = await this.findAgentByEmail(payload.email || "");
+    return agent || null;
+  }
+
+  async authenticateAgent(email: string, password: string) {
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[Agent Auth] Login attempt`, { email });
+    }
+    const normalizedEmail = this.normalizeEmail(email);
+    const agent = await this.findAgentByEmail(normalizedEmail);
+
+    if (!agent) {
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[Agent Auth] Agent not found`, { email });
+      }
+      return null;
+    }
+
+    const passwordMatch = bcrypt.compareSync(password, agent.passwordHash);
+    if (!passwordMatch) {
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[Agent Auth] Password mismatch`, { agentId: agent.id });
+      }
+      return null;
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[Agent Auth] Login successful`, { agentId: agent.id, verificationStatus: agent.verificationStatus });
+    }
+
+    const tokens = this.createAgentTokens({
+      agentId: agent.id,
+      organizationId: agent.organizationId,
+      verificationStatus: agent.verificationStatus,
+      agentType: agent.agentType,
+      email: agent.email,
+    });
+
+    return {
+      accessToken: tokens.access,
+      refreshToken: tokens.refresh,
+      agent: {
+        id: agent.id,
+        email: agent.email,
+        fullname: agent.fullname,
+        phone: agent.phone,
+        verificationStatus: agent.verificationStatus,
+        organizationId: agent.organizationId,
+        agentType: agent.agentType,
+      },
+    };
   }
 }

@@ -9,10 +9,10 @@ datasource db {
 
 model AccountTitle {
   id           Int          @id @default(autoincrement())
-  deletedAt    DateTime?
   label        String
   orgId        Int
   code         String?
+  deletedAt    DateTime?
   Organization Organization @relation(fields: [orgId], references: [id])
   GISRow       GISRow[]
   SummaryRow   SummaryRow[]
@@ -21,9 +21,10 @@ model AccountTitle {
 }
 
 model Agent {
-  id                       String                     @id
+  id                       String                     @id @default(cuid())
   agentType                AgentType
   organizationId           Int?
+  fullname                 String
   email                    String                     @unique
   phone                    String?
   passwordHash             String
@@ -33,17 +34,31 @@ model Agent {
   environment              Environment                @default(PRODUCTION)
   isDevSeed                Boolean                    @default(false)
   createdAt                DateTime                   @default(now())
-  updatedAt                DateTime
+  updatedAt                DateTime                   @updatedAt
   deletedAt                DateTime?
-  fullname                 String
+  address                  String?
+  birthday                 DateTime?
+  city                     String?
+  civilStatus              String?
+  emergencyContact         String?
+  experienceLevel          String                     @default("BEGINNER")
+  gender                   String?
+  interestedIndustries     String[]                   @default([])
+  province                 String?
+  status                   AgentStatus                @default(REGISTERED)
+  zipCode                  String?
   Organization             Organization?              @relation(fields: [organizationId], references: [id])
   AgentVerification        AgentVerification[]
   Mandate                  Mandate[]
+  OrganizationMembership   OrganizationMembership[]
+  ProcurementAgentRequest  ProcurementAgentRequest[]
+  organizationInvitation   ProcurementInvitation?
   SupplierOrganizationLink SupplierOrganizationLink[]
   SupplierOutletLink       SupplierOutletLink[]
 
   @@index([agentType, verificationStatus])
   @@index([organizationId])
+  @@index([status])
 }
 
 model AgentVerification {
@@ -64,7 +79,6 @@ model AgentVerification {
 
 model Attendance {
   id              Int              @id @default(autoincrement())
-  deletedAt       DateTime?
   userId          Int
   shiftId         Int
   shiftDate       DateTime
@@ -82,6 +96,7 @@ model Attendance {
   noteBreakStart  String?
   noteIn          String?
   noteOut         String?
+  deletedAt       DateTime?
   Organization    Organization     @relation(fields: [orgId], references: [id])
   Shift           Shift            @relation(fields: [shiftId], references: [id])
   User            User             @relation(fields: [userId], references: [id])
@@ -116,10 +131,10 @@ model Branch {
   phone           String?
   isActive        Boolean           @default(true)
   createdAt       DateTime          @default(now())
-  deletedAt       DateTime?
   orgId           Int
   ownerId         Int
   locationId      Int?
+  deletedAt       DateTime?
   Organization    Organization      @relation(fields: [orgId], references: [id])
   User            User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   Contact         Contact[]
@@ -134,12 +149,12 @@ model Branch {
 
 model Brand {
   id            Int          @id @default(autoincrement())
-  deletedAt     DateTime?
   email         String?
   webUrl        String?
   contactNumber String?
   name          String       @unique
   orgId         Int
+  deletedAt     DateTime?
   Organization  Organization @relation(fields: [orgId], references: [id])
   Item          Item[]
 
@@ -174,9 +189,9 @@ model CartItem {
   discountQuantity  Float?             @default(0)
   discountRate      Float?             @default(0)
   discountType      DiscountType       @default(NONE)
+  finalPrice        Float              @default(0)
   originalPrice     Float              @default(0)
   vatExclusivePrice Float              @default(0)
-  finalPrice        Float              @default(0)
   costSnapshot      Float?
   priceSnapshot     Float?
   Item              Item               @relation(fields: [itemId], references: [id])
@@ -188,9 +203,9 @@ model CartItem {
 
 model Center {
   id           Int          @id @default(autoincrement())
-  deletedAt    DateTime?
   label        String
   orgId        Int
+  deletedAt    DateTime?
   Organization Organization @relation(fields: [orgId], references: [id])
   GISRow       GISRow[]
   SummaryRow   SummaryRow[]
@@ -200,9 +215,9 @@ model Center {
 
 model Color {
   id        Int       @id @default(autoincrement())
-  deletedAt DateTime?
   name      String    @unique
   hexCode   String?
+  deletedAt DateTime?
   Item      Item[]    @relation("ColorToItem")
 }
 
@@ -230,10 +245,10 @@ model Contact {
 
 model CostLines {
   id        Int       @id @default(autoincrement())
-  deletedAt DateTime?
   itemId    Int
   label     String
   amount    Float
+  deletedAt DateTime?
   Item      Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([itemId])
@@ -252,7 +267,6 @@ model Courier {
 
 model CustomerDetails {
   id              Int         @id @default(autoincrement())
-  deletedAt       DateTime?
   fullname        String?
   username        String?
   email           String?
@@ -263,6 +277,7 @@ model CustomerDetails {
   client_key      String?
   status          String?
   transactionId   Int         @unique
+  deletedAt       DateTime?
   Transaction     Transaction @relation(fields: [transactionId], references: [id])
 }
 
@@ -306,10 +321,10 @@ model DeliveryAddress {
 
 model Department {
   id           Int          @id @default(autoincrement())
-  deletedAt    DateTime?
   label        String
   color        String?
   orgId        Int
+  deletedAt    DateTime?
   Organization Organization @relation(fields: [orgId], references: [id])
   User         User[]
 
@@ -321,20 +336,20 @@ model DiscountAudit {
   orgId                  Int
   userId                 Int
   customerId             String?
-  oscaGovId              String?
   itemId                 Int?
-  salesOrderId           String?
   transactionId          Int?
+  salesOrderId           String?
   kompraOrderId          Int?
   customItemName         String?
   discountType           DiscountType
   discountAmount         Float
   eligibleAmount         Float?
   runningWeeklyBnpcTotal Float?
-  isVoided               Boolean      @default(false)
-  voidedAt               DateTime?
-  voidReason             String?
   createdAt              DateTime     @default(now())
+  isVoided               Boolean      @default(false)
+  oscaGovId              String?
+  voidReason             String?
+  voidedAt               DateTime?
   deletedAt              DateTime?
   Item                   Item?        @relation(fields: [itemId], references: [id])
   User                   User         @relation(fields: [userId], references: [id])
@@ -351,7 +366,6 @@ model DiscountAudit {
 
 model Employee {
   id           String         @id
-  deletedAt    DateTime?
   name         String
   role         String
   department   String
@@ -361,6 +375,7 @@ model Employee {
   email        String         @unique
   orgId        Int
   userId       Int?
+  deletedAt    DateTime?
   Organization Organization   @relation(fields: [orgId], references: [id])
   User         User?          @relation(fields: [userId], references: [id])
 
@@ -427,11 +442,11 @@ model GISRow {
   orgId          Int
   userId         Int?
   createdAt      DateTime     @default(now())
-  deletedAt      DateTime?
   accountTitleId Int
   centerId       Int
   subCenterId    Int
   id             Int          @id @unique @default(autoincrement())
+  deletedAt      DateTime?
   AccountTitle   AccountTitle @relation(fields: [accountTitleId], references: [id])
   Center         Center       @relation(fields: [centerId], references: [id])
   Organization   Organization @relation(fields: [orgId], references: [id])
@@ -444,16 +459,15 @@ model GISRow {
 
 model Inventory {
   id             Int              @id @default(autoincrement())
-  deletedAt      DateTime?
   name           String?
   outletId       Int              @unique
+  deletedAt      DateTime?
   Outlet         Outlet           @relation(fields: [outletId], references: [id], onDelete: Cascade)
   InventoryItems InventoryItems[]
 }
 
 model InventoryItem {
   id           String       @id
-  deletedAt    DateTime?
   name         String
   sku          String
   stock        Int
@@ -463,6 +477,7 @@ model InventoryItem {
   lowStock     Boolean
   orgId        Int
   userId       Int?
+  deletedAt    DateTime?
   Organization Organization @relation(fields: [orgId], references: [id])
   User         User?        @relation(fields: [userId], references: [id])
 
@@ -471,7 +486,6 @@ model InventoryItem {
 
 model InventoryItemUnit {
   id               Int                @id @default(autoincrement())
-  deletedAt        DateTime?
   inventoryItemId  Int
   unitName         String
   unitLabel        String
@@ -486,6 +500,7 @@ model InventoryItemUnit {
   maxOrderQty      Float?
   reorderPoint     Float?
   allowDecimal     Boolean            @default(false)
+  deletedAt        DateTime?
   CartItem         CartItem[]
   InventoryItems   InventoryItems     @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
   KompraCOrderItem KompraCOrderItem[]
@@ -496,7 +511,6 @@ model InventoryItemUnit {
 
 model InventoryItems {
   id                    Int                    @id @default(autoincrement())
-  deletedAt             DateTime?
   inventoryId           Int
   itemId                Int
   price                 Float
@@ -504,6 +518,7 @@ model InventoryItems {
   locationId            Int?                   @unique
   categoryId            Int?
   baseUnit              String                 @default("piece")
+  deletedAt             DateTime?
   InventoryItemUnit     InventoryItemUnit[]
   ItemCategory          ItemCategory?          @relation(fields: [categoryId], references: [id])
   Inventory             Inventory              @relation(fields: [inventoryId], references: [id])
@@ -517,7 +532,6 @@ model InventoryItems {
 
 model Item {
   id                         Int                     @id @default(autoincrement())
-  deletedAt                  DateTime?
   name                       String                  @unique
   image                      String?
   description                String?
@@ -531,10 +545,6 @@ model Item {
   itemCode                   String?
   skuNumber                  String?
   vatExempt                  Boolean?
-  isVatExempt                Boolean                 @default(false)
-  isBNPC                     Boolean                 @default(false)
-  hasSeniorDiscountVATExempt Boolean                 @default(false)
-  vatRate                    Float                   @default(0.12)
   stock                      Float                   @default(0)
   sellingPrice               Float                   @default(0)
   minQuantity                Float                   @default(0)
@@ -549,6 +559,11 @@ model Item {
   vatTypeId                  Int?
   stockDescription           String?
   stockLabel                 String?
+  isBNPC                     Boolean                 @default(false)
+  isVatExempt                Boolean                 @default(false)
+  vatRate                    Float                   @default(0.12)
+  hasSeniorDiscountVATExempt Boolean                 @default(false)
+  deletedAt                  DateTime?
   CartItem                   CartItem[]
   CostLines                  CostLines[]
   DiscountAudit              DiscountAudit[]
@@ -587,8 +602,8 @@ model ItemCategory {
   sales           String?
   stocks          String?
   createdAt       DateTime          @default(now())
-  deletedAt       DateTime?
   icon            String?
+  deletedAt       DateTime?
   InventoryItems  InventoryItems[]
   Item            Item[]
   OrgItemCategory OrgItemCategory[]
@@ -621,8 +636,8 @@ model ItemGroup {
   icon            String?
   isActive        Boolean           @default(true)
   createdAt       DateTime          @default(now())
-  deletedAt       DateTime?
   orgId           Int
+  deletedAt       DateTime?
   Organization    Organization      @relation(fields: [orgId], references: [id])
   OrgItemCategory OrgItemCategory[]
 
@@ -657,15 +672,14 @@ model ItemPriceHistory {
 
 model ItemUnit {
   id          Int       @id @default(autoincrement())
-  deletedAt   DateTime?
   unitName    String    @unique
   description String?
+  deletedAt   DateTime?
   Item        Item[]    @relation("ItemToItemUnit")
 }
 
 model KompraCDeliveryTracking {
   id           Int                 @id @default(autoincrement())
-  deletedAt    DateTime?
   orderId      Int
   event        DeliveryStatusEvent
   statusAt     DateTime            @default(now())
@@ -674,6 +688,7 @@ model KompraCDeliveryTracking {
   note         String?
   actorType    String
   actorId      Int?
+  deletedAt    DateTime?
   KompraCOrder KompraCOrder        @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, statusAt])
@@ -698,25 +713,25 @@ model KompraCOrder {
   riderPhone              String?
   customerNote            String?
   outletNote              String?
-  cancelNote              String?
   createdAt               DateTime                  @default(now())
-  packedAt                DateTime?
-  shippedAt               DateTime?
-  placedAt                DateTime?
-  cancelledAt             DateTime?
   updatedAt               DateTime
-  inventoryDeductedAt     DateTime?
-  deletedAt               DateTime?
   courierId               Int?
-  scPwdCustomerId         String?
+  cancelledAt             DateTime?
   customerType            CustomerType?             @default(REGULAR)
+  discountAmount          Float?                    @default(0)
   discountType            DiscountType?             @default(NONE)
+  grandTotal              Float?
+  packedAt                DateTime?
+  placedAt                DateTime?
+  scPwdCustomerId         String?
   scPwdPax                Int?
   totalPax                Int?
-  vatExemptSale           Float?                    @default(0)
-  discountAmount          Float?                    @default(0)
   vatAmount               Float?                    @default(0)
-  grandTotal              Float?
+  vatExemptSale           Float?                    @default(0)
+  cancelNote              String?
+  shippedAt               DateTime?
+  deletedAt               DateTime?
+  inventoryDeductedAt     DateTime?
   checkoutGroupId         String?
   KompraCDeliveryTracking KompraCDeliveryTracking[]
   Courier                 Courier?                  @relation(fields: [courierId], references: [id])
@@ -733,17 +748,16 @@ model KompraCOrder {
 
 model KompraCOrderFee {
   id           Int          @id @default(autoincrement())
-  deletedAt    DateTime?
   orderId      Int
   type         FeeType
   label        String
   amount       Float
+  deletedAt    DateTime?
   KompraCOrder KompraCOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model KompraCOrderItem {
   id                Int                @id @default(autoincrement())
-  deletedAt         DateTime?
   orderId           Int
   inventoryItemId   Int
   itemId            Int
@@ -751,6 +765,7 @@ model KompraCOrderItem {
   priceSnapshot     Float
   subtotal          Float
   unitId            Int?
+  deletedAt         DateTime?
   costSnapshot      Float?
   InventoryItems    InventoryItems     @relation(fields: [inventoryItemId], references: [id])
   Item              Item               @relation(fields: [itemId], references: [id])
@@ -770,8 +785,8 @@ model KompraCustomer {
   isActive            Boolean               @default(true)
   createdAt           DateTime              @default(now())
   updatedAt           DateTime
-  deletedAt           DateTime?
   phone               String?               @unique
+  deletedAt           DateTime?
   CustomerDeviceToken CustomerDeviceToken[]
   DeliveryAddress     DeliveryAddress[]
   KompraCOrder        KompraCOrder[]
@@ -779,10 +794,10 @@ model KompraCustomer {
 
 model Location {
   id             Int             @id @default(autoincrement())
-  deletedAt      DateTime?
   aisle          String?
   rack           String?
   shelf          String?
+  deletedAt      DateTime?
   InventoryItems InventoryItems?
 }
 
@@ -855,11 +870,11 @@ model MandateTransaction {
 
 model Media {
   id        Int        @id @default(autoincrement())
-  deletedAt DateTime?
   url       String
   type      MediaType?
   itemId    Int?
   sortOrder Int        @default(0)
+  deletedAt DateTime?
   Item      Item?      @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([itemId, sortOrder])
@@ -916,12 +931,8 @@ model OrgItemCategory {
 model Organization {
   id                                                                            Int                            @id @default(autoincrement())
   name                                                                          String
-  roles                                                                         OrgRole[]                      @default([SELLER])
   createdAt                                                                     DateTime                       @default(now())
-  updatedAt                                                                     DateTime?
-  deletedAt                                                                     DateTime?
   bannerImg                                                                     String?
-  profileImg                                                                    String?
   contactNumber                                                                 String?
   email                                                                         String?
   location                                                                      String?
@@ -930,6 +941,10 @@ model Organization {
   instagramLink                                                                 String?
   twitterLink                                                                   String?
   bio                                                                           String?
+  deletedAt                                                                     DateTime?
+  updatedAt                                                                     DateTime?
+  profileImg                                                                    String?
+  roles                                                                         OrgRole[]                      @default([SELLER])
   isDevSeed                                                                     Boolean                        @default(false)
   verificationExpiresAt                                                         DateTime?
   verificationStatus                                                            OrgVerificationStatus          @default(UNVERIFIED)
@@ -952,12 +967,15 @@ model Organization {
   MandateTransaction                                                            MandateTransaction[]
   Notification                                                                  Notification[]
   OrgItemCategory                                                               OrgItemCategory[]
+  OrganizationMembership                                                        OrganizationMembership[]
   OrganizationReview_OrganizationReview_organizationIdToOrganization            OrganizationReview[]           @relation("OrganizationReview_organizationIdToOrganization")
   OrganizationReview_OrganizationReview_reviewerOrgIdToOrganization             OrganizationReview[]           @relation("OrganizationReview_reviewerOrgIdToOrganization")
   Outlet                                                                        Outlet[]
   PaymentGatewayCredential                                                      PaymentGatewayCredential[]
   PayoutMethod                                                                  PayoutMethod[]
   Position                                                                      Position[]
+  ProcurementAgentRequest                                                       ProcurementAgentRequest[]
+  ProcurementInvitation                                                         ProcurementInvitation[]
   PromoType                                                                     PromoType[]
   PurchaseOrder_PurchaseOrder_buyerOrgIdToOrganization                          PurchaseOrder[]                @relation("PurchaseOrder_buyerOrgIdToOrganization")
   PurchaseOrder_PurchaseOrder_supplierOrgIdToOrganization                       PurchaseOrder[]                @relation("PurchaseOrder_supplierOrgIdToOrganization")
@@ -1019,7 +1037,6 @@ model Outlet {
   isActive              Boolean                 @default(true)
   wifiSSID              String?
   createdAt             DateTime                @default(now())
-  deletedAt             DateTime?
   orgId                 Int
   branchId              Int?
   ownerId               Int
@@ -1035,6 +1052,7 @@ model Outlet {
   tin                   String?
   vatTypeId             Int?
   vatZeroSale           Float?                  @default(0)
+  deletedAt             DateTime?
   Inventory             Inventory?
   KompraCOrder          KompraCOrder[]
   Notification          Notification[]
@@ -1060,7 +1078,6 @@ model Outlet {
 
 model OutletDeliveryConfig {
   id               Int       @id @default(autoincrement())
-  deletedAt        DateTime?
   outletId         Int       @unique
   isDeliveryActive Boolean   @default(true)
   deliveryRadiusKm Float     @default(5.0)
@@ -1069,6 +1086,7 @@ model OutletDeliveryConfig {
   minOrderAmount   Float?
   maxOrderAmount   Float?
   avgPrepMins      Int       @default(15)
+  deletedAt        DateTime?
   Outlet           Outlet    @relation(fields: [outletId], references: [id], onDelete: Cascade)
 }
 
@@ -1097,9 +1115,9 @@ model OutletPromo {
   discount    Float
   isActive    Boolean       @default(true)
   createdAt   DateTime      @default(now())
-  deletedAt   DateTime?
   userId      Int
   vatable     Boolean       @default(false)
+  deletedAt   DateTime?
   Outlet      Outlet        @relation(fields: [outletId], references: [id], onDelete: Cascade)
   PromoType   PromoType     @relation(fields: [promoTypeId], references: [id], onDelete: Cascade)
   User        User          @relation(fields: [userId], references: [id])
@@ -1134,12 +1152,12 @@ model POLineItem {
 
 model Page {
   id                     String                   @id
-  deletedAt              DateTime?
   key                    String                   @unique
   label                  String
   parentKey              String?
-  access                 Access                   @default(SELLER)
   sortOrder              Int                      @default(0)
+  deletedAt              DateTime?
+  access                 Access                   @default(SELLER)
   PositionPermission     PositionPermission[]
   UserPermissionOverride UserPermissionOverride[]
 }
@@ -1182,10 +1200,10 @@ model PaymentTransaction {
 
 model PaymongoAPIKeys {
   id         Int       @id @default(autoincrement())
-  deletedAt  DateTime?
   public_key String
   secret_key String
   ownerId    Int       @unique
+  deletedAt  DateTime?
   Outlet     Outlet[]
   User       User      @relation(fields: [ownerId], references: [id])
 }
@@ -1211,11 +1229,11 @@ model PayoutMethod {
 
 model PlaceLocation {
   id        Int       @id @default(autoincrement())
-  deletedAt DateTime?
   address   String
   latitude  Float
   longitude Float
   branchId  Int       @unique
+  deletedAt DateTime?
   Branch    Branch    @relation(fields: [branchId], references: [id])
 }
 
@@ -1228,9 +1246,11 @@ model Position {
   permissionsVersion        DateTime                    @default(now())
   updatedAt                 DateTime
   deletedAt                 DateTime?
+  OrganizationMembership    OrganizationMembership[]
   Organization              Organization?               @relation(fields: [orgId], references: [id])
   PositionControlPermission PositionControlPermission[]
   PositionPermission        PositionPermission[]
+  ProcurementInvitation     ProcurementInvitation[]
   User                      User[]
 }
 
@@ -1275,9 +1295,9 @@ model PromoType {
   description  String?
   isActive     Boolean       @default(true)
   createdAt    DateTime      @default(now())
-  deletedAt    DateTime?
   orgId        Int
   userId       Int?
+  deletedAt    DateTime?
   OutletPromo  OutletPromo[]
   Organization Organization  @relation(fields: [orgId], references: [id])
   User         User?         @relation(fields: [userId], references: [id])
@@ -1334,12 +1354,12 @@ model RestockCycle {
   firedAt          DateTime?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime
-  deletedAt        DateTime?
   address          String?
   branchId         Int?
   latitude         Float?
   longitude        Float?
   outletId         Int?
+  deletedAt        DateTime?
   Branch           Branch?            @relation(fields: [branchId], references: [id])
   Organization     Organization       @relation(fields: [orgId], references: [id])
   Outlet           Outlet?            @relation(fields: [outletId], references: [id])
@@ -1353,10 +1373,10 @@ model RestockCycle {
 
 model RestockCycleItem {
   id           Int          @id @default(autoincrement())
-  deletedAt    DateTime?
   cycleId      Int
   itemId       Int
   quantity     Float
+  deletedAt    DateTime?
   RestockCycle RestockCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
   Item         Item         @relation(fields: [itemId], references: [id])
 
@@ -1379,7 +1399,6 @@ model RestockSchedule {
   isActive            Boolean               @default(true)
   createdAt           DateTime              @default(now())
   updatedAt           DateTime
-  deletedAt           DateTime?
   lastTriggeredAt     DateTime?
   customTimes         Json?
   branchId            Int?
@@ -1387,6 +1406,7 @@ model RestockSchedule {
   address             String?
   latitude            Float?
   longitude           Float?
+  deletedAt           DateTime?
   RestockCycle        RestockCycle[]
   Branch              Branch?               @relation(fields: [branchId], references: [id])
   Organization        Organization          @relation(fields: [orgId], references: [id])
@@ -1397,13 +1417,13 @@ model RestockSchedule {
 
 model RestockScheduleItem {
   id              Int             @id @default(autoincrement())
-  deletedAt       DateTime?
   scheduleId      Int
   itemId          Int
   quantity        Float
   dayOfMonth      Int?
   dayOfWeek       Int?
   timeOfDay       String?
+  deletedAt       DateTime?
   Item            Item            @relation(fields: [itemId], references: [id])
   RestockSchedule RestockSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
@@ -1421,37 +1441,37 @@ model SalaryHistory {
 
 model SalesOrder {
   id                  String              @id
-  orderNumber         String              @unique
   customer            String
-  orderMode           OrderMode           @default(WALK_IN)
-  status              SalesOrderStatus    @default(PENDING)
+  total               Float               @default(0)
   date                DateTime            @default(now())
-  updatedAt           DateTime
-  inventoryDeductedAt DateTime?
-  deletedAt           DateTime?
   orgId               Int
   userId              Int?
-  outletId            Int?
   branchId            Int?
-  customerName        String?
+  discountAmount      Float               @default(0)
+  discountRate        Float               @default(0)
+  orderNumber         String              @unique
+  outletId            Int?
+  outletPromoId       Int?
+  subtotal            Float               @default(0)
+  updatedAt           DateTime
+  vatAmount           Float               @default(0)
+  vatRate             Float               @default(0)
+  status              SalesOrderStatus    @default(PENDING)
   customerContact     String?
+  customerName        String?
   customerType        CustomerType        @default(REGULAR)
-  discountType        DiscountType        @default(NONE)
-  vatExemptSale       Float               @default(0)
-  totalPax            Int?
-  scPwdPax            Int?
-  scPwdCustomerId     String?
   deliveryAddress     String?
   deliveryNotes       String?
-  subtotal            Float               @default(0)
-  discountAmount      Float               @default(0)
-  vatAmount           Float               @default(0)
-  total               Float               @default(0)
-  vatRate             Float               @default(0)
-  discountRate        Float               @default(0)
+  discountType        DiscountType        @default(NONE)
   extraChargesTotal   Float               @default(0)
   grandTotal          Float               @default(0)
-  outletPromoId       Int?
+  orderMode           OrderMode           @default(WALK_IN)
+  scPwdCustomerId     String?
+  scPwdPax            Int?
+  totalPax            Int?
+  vatExemptSale       Float               @default(0)
+  deletedAt           DateTime?
+  inventoryDeductedAt DateTime?
   ExtraCharge         ExtraCharge[]
   Branch              Branch?             @relation(fields: [branchId], references: [id])
   Organization        Organization        @relation(fields: [orgId], references: [id])
@@ -1470,7 +1490,6 @@ model SalesOrder {
 
 model SalesOrderDelivery {
   id             Int        @id @default(autoincrement())
-  deletedAt      DateTime?
   salesOrderId   String     @unique
   courierName    String?
   trackingNumber String?
@@ -1481,28 +1500,29 @@ model SalesOrderDelivery {
   estimatedDate  DateTime?
   shippedAt      DateTime?
   receivedAt     DateTime?
+  deletedAt      DateTime?
   SalesOrder     SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
 }
 
 model SalesOrderItem {
   id               Int          @id @default(autoincrement())
-  deletedAt        DateTime?
   salesOrderId     String
   itemId           Int?
   quantity         Float
   unitPrice        Float
   totalPrice       Float
-  discountQuantity Float?       @default(0)
-  discountRate     Float?       @default(0)
-  discountAmount   Float?       @default(0)
-  discountType     DiscountType @default(NONE)
   unitId           Int?
   unitName         String?
+  discountAmount   Float?       @default(0)
+  discountQuantity Float?       @default(0)
+  discountRate     Float?       @default(0)
+  customItemName   String?
+  isCustomItem     Boolean      @default(false)
+  vatExempt        Boolean      @default(false)
+  discountType     DiscountType @default(NONE)
+  deletedAt        DateTime?
   costSnapshot     Float?
   priceSnapshot    Float?
-  isCustomItem     Boolean      @default(false)
-  customItemName   String?
-  vatExempt        Boolean      @default(false)
   Item             Item?        @relation(fields: [itemId], references: [id])
   SalesOrder       SalesOrder   @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
 
@@ -1514,20 +1534,20 @@ model ScPwdCustomer {
   orgId                  Int?
   fullName               String
   idNumber               String
-  oscaId                 String?        @unique
-  govId                  String?        @unique
   idType                 String
   customerType           CustomerType
   dateOfBirth            DateTime?
   contactNumber          String?
   address                String?
-  bnpcCapManuallyReached Boolean        @default(false)
-  bnpcCapManualReason    String?
   isRepresentative       Boolean        @default(false)
   representativeName     String?
   representativeIdNumber String?
   createdAt              DateTime       @default(now())
   updatedAt              DateTime
+  bnpcCapManualReason    String?
+  bnpcCapManuallyReached Boolean        @default(false)
+  govId                  String?        @unique
+  oscaId                 String?        @unique
   deletedAt              DateTime?
   KompraCOrder           KompraCOrder[]
   SalesOrder             SalesOrder[]
@@ -1545,12 +1565,12 @@ model ScPwdCustomer {
 
 model Shift {
   id            Int          @id @default(autoincrement())
-  deletedAt     DateTime?
   name          String
   startTime     DateTime
   endTime       DateTime
   breakDuration Int          @default(0)
   orgId         Int
+  deletedAt     DateTime?
   Attendance    Attendance[]
   Organization  Organization @relation(fields: [orgId], references: [id])
   UserShift     UserShift[]
@@ -1560,7 +1580,6 @@ model Shift {
 
 model StockBatch {
   id              Int          @id @default(autoincrement())
-  deletedAt       DateTime?
   itemId          Int
   orgId           Int
   orderId         Int?
@@ -1570,6 +1589,7 @@ model StockBatch {
   expiryEndDate   DateTime?
   exactExpiryDate DateTime?
   receivedAt      DateTime     @default(now())
+  deletedAt       DateTime?
   Item            Item         @relation(fields: [itemId], references: [id])
   Organization    Organization @relation(fields: [orgId], references: [id])
 
@@ -1579,9 +1599,9 @@ model StockBatch {
 
 model StockLocation {
   id        Int       @id @default(autoincrement())
-  deletedAt DateTime?
   name      String
   address   String
+  deletedAt DateTime?
 }
 
 model StockMovement {
@@ -1597,16 +1617,16 @@ model StockMovement {
   referenceType   String?
   reason          String?
   createdAt       DateTime          @default(now())
-  deletedAt       DateTime?
   createdBy       Int
+  deletedAt       DateTime?
   Item            Item              @relation(fields: [itemId], references: [id])
 }
 
 model SubCenter {
   id           Int          @id @default(autoincrement())
-  deletedAt    DateTime?
   label        String
   orgId        Int
+  deletedAt    DateTime?
   GISRow       GISRow[]
   Organization Organization @relation(fields: [orgId], references: [id])
   SummaryRow   SummaryRow[]
@@ -1636,7 +1656,6 @@ model SummaryRow {
   orgId            Int
   userId           Int?
   createdAt        DateTime     @default(now())
-  deletedAt        DateTime?
   itemId           Int?
   itemName         String?
   accountTitleId   Int
@@ -1652,6 +1671,7 @@ model SummaryRow {
   opExAmount       Float        @default(0)
   vatInput         Float?       @default(0)
   vatOutput        Float?       @default(0)
+  deletedAt        DateTime?
   AccountTitle     AccountTitle @relation(fields: [accountTitleId], references: [id])
   Center           Center       @relation(fields: [centerId], references: [id])
   Item             Item?        @relation(fields: [itemId], references: [id])
@@ -1737,17 +1757,17 @@ model SupplierItem {
   isActive                  Boolean                     @default(true)
   createdAt                 DateTime                    @default(now())
   updatedAt                 DateTime
+  categoryId                String?
+  currentCost               Float                       @default(0)
   damagedQty                Float                       @default(0)
+  deletedAt                 DateTime?
+  groupId                   String?
   image                     String?
   incomingQty               Float                       @default(0)
   reorderLevel              Float?
   reorderQty                Float?
   reservedQty               Float                       @default(0)
   returnedQty               Float                       @default(0)
-  deletedAt                 DateTime?
-  currentCost               Float                       @default(0)
-  categoryId                String?
-  groupId                   String?
   leadTime                  String?
   sampleAvailable           Boolean                     @default(false)
   samplePrice               Float?
@@ -1765,6 +1785,7 @@ model SupplierItem {
   SupplierItemCategory      SupplierItemCategory?       @relation(fields: [categoryId], references: [id])
   SupplierItemGroup         SupplierItemGroup?          @relation(fields: [groupId], references: [id])
   SupplierItemCostHistory   SupplierItemCostHistory[]
+  SupplierItemImage         SupplierItemImage[]
   SupplierItemPriceHistory  SupplierItemPriceHistory[]
   reviews                   SupplierItemReview[]
   SupplierItemVariant       SupplierItemVariant[]
@@ -1776,7 +1797,6 @@ model SupplierItem {
   WholesalePackaging        WholesalePackaging?
   WholesaleQuote            WholesaleQuote[]
   WholesaleShipping         WholesaleShipping?
-  SupplierItemImage         SupplierItemImage[]
 
   @@unique([catalogId, sku])
 }
@@ -1804,11 +1824,11 @@ model WholesalePackaging {
   packageLength  Float?
   packageWidth   Float?
   packageHeight  Float?
-  grossWeight    Float?
-  netWeight      Float?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime
   deletedAt      DateTime?
+  grossWeight    Float?
+  netWeight      Float?
   SupplierItem   SupplierItem @relation(fields: [supplierItemId], references: [id], onDelete: Cascade)
 }
 
@@ -1818,12 +1838,12 @@ model WholesaleShipping {
   originCountry  String?
   originProvince String?
   originCity     String?
-  shippingMethod String?
   estimatedDays  Int?
   shippingNotes  String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime?
   deletedAt      DateTime?
+  shippingMethod String?
   SupplierItem   SupplierItem @relation(fields: [supplierItemId], references: [id], onDelete: Cascade)
 }
 
@@ -1831,14 +1851,14 @@ model WholesaleDocument {
   id             String           @id @default(cuid())
   supplierItemId String
   title          String?
-  type           WholesaleDocType
   fileUrl        String
   verified       Boolean          @default(false)
-  verifiedById   Int?
-  verifiedAt     DateTime?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime
   deletedAt      DateTime?
+  verifiedAt     DateTime?
+  verifiedById   Int?
+  type           WholesaleDocType
   SupplierItem   SupplierItem     @relation(fields: [supplierItemId], references: [id], onDelete: Cascade)
   User           User?            @relation(fields: [verifiedById], references: [id])
 
@@ -1849,7 +1869,6 @@ model WholesaleDocument {
 model SupplierCapability {
   id             String                 @id @default(cuid())
   organizationId Int
-  type           SupplierCapabilityType
   name           String
   icon           String?
   available      Boolean                @default(true)
@@ -1857,6 +1876,7 @@ model SupplierCapability {
   createdAt      DateTime               @default(now())
   updatedAt      DateTime
   deletedAt      DateTime?
+  type           SupplierCapabilityType
   Organization   Organization           @relation(fields: [organizationId], references: [id])
 
   @@index([organizationId])
@@ -1938,18 +1958,18 @@ model SupplierItemPriceHistory {
 }
 
 model SupplierItemReview {
-  id                       String                    @id
-  supplierItemId           String
-  reviewerOrgId            Int
-  rating                   Int
-  title                    String?
-  comment                  String?
-  isVerifiedPurchase       Boolean                   @default(false)
-  createdAt                DateTime                  @default(now())
-  updatedAt                DateTime
-  deletedAt                DateTime?
-  Organization             Organization              @relation(fields: [reviewerOrgId], references: [id])
-  SupplierItem             SupplierItem              @relation(fields: [supplierItemId], references: [id], onDelete: Cascade)
+  id                      String                    @id
+  supplierItemId          String
+  reviewerOrgId           Int
+  rating                  Int
+  title                   String?
+  comment                 String?
+  isVerifiedPurchase      Boolean                   @default(false)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime
+  deletedAt               DateTime?
+  Organization            Organization              @relation(fields: [reviewerOrgId], references: [id])
+  SupplierItem            SupplierItem              @relation(fields: [supplierItemId], references: [id], onDelete: Cascade)
   SupplierItemReviewImage SupplierItemReviewImage[]
 
   @@index([rating])
@@ -1970,8 +1990,8 @@ model SupplierOrder {
   expectedArrival   DateTime
   createdAt         DateTime            @default(now())
   updatedAt         DateTime
-  deletedAt         DateTime?
   cycleId           Int?
+  deletedAt         DateTime?
   RestockCycle      RestockCycle?       @relation(fields: [cycleId], references: [id])
   Organization      Organization        @relation(fields: [orgId], references: [id])
   RestockSchedule   RestockSchedule?    @relation(fields: [scheduleId], references: [id])
@@ -1983,7 +2003,6 @@ model SupplierOrder {
 
 model SupplierOrderItem {
   id              Int           @id @default(autoincrement())
-  deletedAt       DateTime?
   orderId         Int
   itemId          Int
   requestedQty    Float
@@ -1992,6 +2011,7 @@ model SupplierOrderItem {
   expiryStartDate DateTime?
   expiryEndDate   DateTime?
   exactExpiryDate DateTime?
+  deletedAt       DateTime?
   Item            Item          @relation(fields: [itemId], references: [id])
   SupplierOrder   SupplierOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -2004,17 +2024,17 @@ model SupplierOutletLink {
   outletId             Int
   isApproved           Boolean            @default(false)
   createdAt            DateTime           @default(now())
-  status               SupplierLinkStatus @default(REQUESTED)
-  assignedAgentId      String?
-  preferredWarehouseId String?
-  deliveryInstructions String?
-  receivingHours       String?
-  creditTerms          String?
-  notes                String?
-  linkedAt             DateTime?
-  pausedAt             DateTime?
   archivedAt           DateTime?
+  assignedAgentId      String?
+  creditTerms          String?
   deletedAt            DateTime?
+  deliveryInstructions String?
+  linkedAt             DateTime?
+  notes                String?
+  pausedAt             DateTime?
+  preferredWarehouseId String?
+  receivingHours       String?
+  status               SupplierLinkStatus @default(REQUESTED)
   updatedAt            DateTime
   Agent                Agent?             @relation(fields: [assignedAgentId], references: [id])
   Outlet               Outlet             @relation(fields: [outletId], references: [id])
@@ -2108,24 +2128,24 @@ model Transaction {
   paymentMethod     PaymentMethod
   status            Status
   createdAt         DateTime
-  deletedAt         DateTime?
   syncedAt          DateTime         @default(now())
   customerDetailsId Int?
-  customerType      CustomerType     @default(REGULAR)
-  scPwdCustomerId   String?
   isVatExempt       Boolean          @default(false)
   scPwdDiscountAmt  Float?
   vatExemptAmount   Float?
-  vatExemptSale     Float            @default(0)
   vatExemptRefNo    String?
   vatExemptType     VatExemptType?
-  discountType      DiscountType     @default(NONE)
-  discountRate      Float            @default(0)
   discountAmount    Float            @default(0)
-  totalPax          Int?
-  scPwdPax          Int?
   outletPromoId     Int?
   promoDiscountAmt  Float?
+  customerType      CustomerType     @default(REGULAR)
+  discountRate      Float            @default(0)
+  scPwdCustomerId   String?
+  scPwdPax          Int?
+  totalPax          Int?
+  vatExemptSale     Float            @default(0)
+  discountType      DiscountType     @default(NONE)
+  deletedAt         DateTime?
   CartItem          CartItem[]
   CustomerDetails   CustomerDetails?
   User              User?            @relation(fields: [cashierId], references: [id])
@@ -2142,60 +2162,62 @@ model UnauthorizedAttempt {
 }
 
 model User {
-  id                     Int                      @id @default(autoincrement())
-  fullname               String
-  username               String                   @unique
-  email                  String                   @unique
-  role                   Role                     @default(CASHIER)
-  password               String
-  createdAt              DateTime                 @default(now())
-  profilePhoto           String?
-  isActive               Boolean                  @default(true)
-  managerId              Int?
-  enabledPaymentMethod   Boolean                  @default(false)
-  contactNumber          String?
-  orgId                  Int?
-  salary                 Float?
-  isVerified             Boolean                  @default(false)
-  verificationCode       String?
-  country                String?
-  zipCode                String?
-  city                   String?
-  address                String?
-  dateOfBirth            DateTime?
-  isOwner                Boolean                  @default(false)
-  positionId             String?
-  departmentId           Int?
-  updatedAt              DateTime?
-  deletedAt              DateTime?
-  approvalStatus         ApprovalStatus           @default(PENDING)
-  Attendance             Attendance[]
-  AuditLog               AuditLog[]
-  Branch                 Branch[]
-  Budget                 Budget[]
-  CustomerProfile        CustomerProfile?
-  DiscountAudit          DiscountAudit[]
-  Employee               Employee[]
-  GISRow                 GISRow[]
-  InventoryItem          InventoryItem[]
-  Outlet                 Outlet[]
-  OutletPromo            OutletPromo[]
-  OutletStaff            OutletStaff[]
-  PaymongoAPIKeys        PaymongoAPIKeys?
-  PromoType              PromoType[]
-  SalaryHistory          SalaryHistory[]
-  SalesOrder             SalesOrder[]
-  SummaryRow             SummaryRow[]
-  SupplierProfile        SupplierProfile?
-  Transaction            Transaction[]
-  Department             Department?              @relation(fields: [departmentId], references: [id])
-  User                   User?                    @relation("UserToUser", fields: [managerId], references: [id])
-  other_User             User[]                   @relation("UserToUser")
-  Organization           Organization?            @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  Position               Position?                @relation(fields: [positionId], references: [id])
-  UserPermissionOverride UserPermissionOverride[]
-  UserShift              UserShift[]
-  WholesaleDocument      WholesaleDocument[]
+  id                                                              Int                      @id @default(autoincrement())
+  fullname                                                        String
+  username                                                        String                   @unique
+  email                                                           String                   @unique
+  role                                                            Role                     @default(CASHIER)
+  password                                                        String
+  createdAt                                                       DateTime                 @default(now())
+  profilePhoto                                                    String?
+  managerId                                                       Int?
+  enabledPaymentMethod                                            Boolean                  @default(false)
+  contactNumber                                                   String?
+  orgId                                                           Int?
+  isVerified                                                      Boolean                  @default(false)
+  verificationCode                                                String?
+  isOwner                                                         Boolean                  @default(false)
+  positionId                                                      String?
+  departmentId                                                    Int?
+  address                                                         String?
+  city                                                            String?
+  dateOfBirth                                                     DateTime?
+  zipCode                                                         String?
+  country                                                         String?
+  updatedAt                                                       DateTime?
+  deletedAt                                                       DateTime?
+  isActive                                                        Boolean                  @default(true)
+  salary                                                          Float?
+  approvalStatus                                                  ApprovalStatus           @default(PENDING)
+  Attendance                                                      Attendance[]
+  AuditLog                                                        AuditLog[]
+  Branch                                                          Branch[]
+  Budget                                                          Budget[]
+  CustomerProfile                                                 CustomerProfile?
+  DiscountAudit                                                   DiscountAudit[]
+  Employee                                                        Employee[]
+  GISRow                                                          GISRow[]
+  InventoryItem                                                   InventoryItem[]
+  OrganizationMembership_OrganizationMembership_invitedByIdToUser OrganizationMembership[] @relation("OrganizationMembership_invitedByIdToUser")
+  Outlet                                                          Outlet[]
+  OutletPromo                                                     OutletPromo[]
+  OutletStaff                                                     OutletStaff[]
+  PaymongoAPIKeys                                                 PaymongoAPIKeys?
+  ProcurementInvitation                                           ProcurementInvitation[]
+  PromoType                                                       PromoType[]
+  SalaryHistory                                                   SalaryHistory[]
+  SalesOrder                                                      SalesOrder[]
+  SummaryRow                                                      SummaryRow[]
+  SupplierProfile                                                 SupplierProfile?
+  Transaction                                                     Transaction[]
+  Department                                                      Department?              @relation(fields: [departmentId], references: [id])
+  User                                                            User?                    @relation("UserToUser", fields: [managerId], references: [id])
+  other_User                                                      User[]                   @relation("UserToUser")
+  Organization                                                    Organization?            @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  Position                                                        Position?                @relation(fields: [positionId], references: [id])
+  UserPermissionOverride                                          UserPermissionOverride[]
+  UserShift                                                       UserShift[]
+  WholesaleDocument                                               WholesaleDocument[]
 
   @@unique([orgId, email])
   @@unique([orgId, username])
@@ -2228,10 +2250,10 @@ model UserShift {
 
 model VatType {
   id           Int          @id @default(autoincrement())
-  deletedAt    DateTime?
   orgId        Int
   name         String
   rate         Float
+  deletedAt    DateTime?
   Item         Item[]
   Outlet       Outlet[]
   SummaryRow   SummaryRow[]
@@ -2711,8 +2733,8 @@ model SupplierItemVariant {
   updatedAt                  DateTime
   deletedAt                  DateTime?
   SupplierItem               SupplierItem               @relation(fields: [supplierItemId], references: [id], onDelete: Cascade)
-  SupplierItemVariantValue   SupplierItemVariantValue[]
   SupplierItemRVariantImages SupplierItemVariantImage[]
+  SupplierItemVariantValue   SupplierItemVariantValue[]
 
   @@index([supplierItemId])
   @@index([supplierItemId, isActive])
@@ -2886,6 +2908,86 @@ model SupplierProfile {
   @@index([status])
 }
 
+model OrganizationMembership {
+  id                                            String           @id
+  agentId                                       String?
+  orgId                                         Int
+  positionId                                    String?
+  invitedById                                   Int?
+  status                                        MembershipStatus @default(PENDING)
+  joinedAt                                      DateTime?
+  createdAt                                     DateTime         @default(now())
+  updatedAt                                     DateTime
+  deletedAt                                     DateTime?
+  Agent                                         Agent?           @relation(fields: [agentId], references: [id])
+  User_OrganizationMembership_invitedByIdToUser User?            @relation("OrganizationMembership_invitedByIdToUser", fields: [invitedById], references: [id])
+  Organization                                  Organization     @relation(fields: [orgId], references: [id])
+  Position                                      Position?        @relation(fields: [positionId], references: [id])
+
+  @@unique([agentId, orgId])
+  @@index([invitedById])
+  @@index([status])
+}
+
+model ProcurementAgentRequest {
+  id           String                        @id
+  orgId        Int
+  agentId      String
+  message      String?
+  status       ProcurementAgentRequestStatus @default(PENDING)
+  reviewedById Int?
+  reviewedAt   DateTime?
+  reviewNotes  String?
+  createdAt    DateTime                      @default(now())
+  updatedAt    DateTime
+  deletedAt    DateTime?
+  Agent        Agent                         @relation(fields: [agentId], references: [id])
+  Organization Organization                  @relation(fields: [orgId], references: [id])
+
+  @@index([agentId, status])
+  @@index([orgId, status])
+}
+
+model ProcurementInvitation {
+  id               String                      @id
+  orgId            Int
+  email            String?
+  code             String?                     @unique
+  link             String?                     @unique
+  positionId       String?
+  status           ProcurementInvitationStatus @default(PENDING)
+  expiresAt        DateTime?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime
+  deletedAt        DateTime?
+  revokedAt        DateTime?
+  acceptedByUserId Int?
+  usedByAgentId    String?                     @unique(map: "ProcurementInvitation_usedByAgentId_unique")
+  usedAt           DateTime?
+  approvedAt       DateTime?
+  approvedBy       Int?
+  rejectedBy       Int?
+  rejectionReason  String?
+  User             User?                       @relation(fields: [acceptedByUserId], references: [id])
+  Organization     Organization                @relation(fields: [orgId], references: [id])
+  Position         Position?                   @relation(fields: [positionId], references: [id])
+  UsedByAgent      Agent?                      @relation(fields: [usedByAgentId], references: [id])
+
+  @@index([code])
+  @@index([email])
+  @@index([expiresAt])
+  @@index([orgId, status])
+  @@index([usedByAgentId])
+}
+
+enum AgentStatus {
+  REGISTERED
+  PENDING_VERIFICATION
+  PENDING_ORGANIZATION_APPROVAL
+  ACTIVE
+  REJECTED
+}
+
 enum Access {
   SELLER
   SUPPLIER
@@ -2968,6 +3070,13 @@ enum DocumentType {
   VALID_ID
   PROOF_OF_ADDRESS
   OTHER
+  GOVERNMENT_ID_FRONT
+  GOVERNMENT_ID_BACK
+  SELFIE_WITH_ID
+  TIN
+  NBI_CLEARANCE
+  POLICE_CLEARANCE
+  OTHER_DOCUMENT
 }
 
 enum EmployeeStatus {
@@ -3176,15 +3285,15 @@ enum Role {
 }
 
 enum SalesOrderStatus {
-  PENDING
-  PROCESSING
-  READY_FOR_PICKUP
-  OUT_FOR_DELIVERY
-  COMPLETED
   ORDERED
+  PROCESSING
   SHIPPED
   RECEIVED
   CANCELLED
+  PENDING
+  READY_FOR_PICKUP
+  OUT_FOR_DELIVERY
+  COMPLETED
 }
 
 enum ScheduledPriceStatus {
@@ -3201,11 +3310,11 @@ enum SettlementType {
 
 enum Status {
   PENDING
-  COMPLETED
   PAID
   SYNCED
   FAILED
   CANCELED
+  COMPLETED
 }
 
 enum StockMovementType {
@@ -3220,9 +3329,9 @@ enum StockMovementType {
 }
 
 enum SubscriptionPlan {
-  FREE
   BASIC
   GOLD
+  FREE
 }
 
 enum SupplierIncomingStatus {
@@ -3335,4 +3444,33 @@ enum WholesaleDocType {
   ROHS
   MSDS
   OTHER
+}
+
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum OrganizationRole {
+  PROCUREMENET_OFFICER
+  PURCHASING_OFFICER
+  BUYER
+  AUTHORIZED_REPRESENTATIVE
+}
+
+enum ProcurementAgentRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProcurementInvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+  USED
+  REJECTED
 }

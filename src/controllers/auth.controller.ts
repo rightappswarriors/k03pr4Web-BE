@@ -2,10 +2,14 @@ import { Body, Controller, Get, Headers, HttpCode, Patch, Post, UploadedFiles, U
 import { Throttle } from "@nestjs/throttler";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
 import { CustomerAuthService } from "../services/customer-auth.service";
+import { AuthService } from "../services/auth.service";
 
 @Controller()
 export class AuthController {
-  constructor(private readonly customers: CustomerAuthService) {}
+  constructor(
+    private readonly customers: CustomerAuthService,
+    private readonly authService: AuthService,
+  ) {}
 
   @Post("register")
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
@@ -19,6 +23,24 @@ export class AuthController {
   @Throttle({ default: { limit: 8, ttl: 60_000 } })
   login(@Body() body: unknown) {
     return this.customers.login(body);
+  }
+
+  @Post("agent/login")
+  @HttpCode(200)
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  agentLogin(@Body() body: unknown) {
+    const { email, password } = body as { email?: string; password?: string };
+    if (!email || !password) {
+      return { success: false, error: "Email and password are required." };
+    }
+    if (process.env.NODE_ENV === "development") {
+      console.log("[agent/login] test response ✅");
+    }
+    const result = this.authService.authenticateAgent(email, password);
+    if (!result) {
+      return { success: false, error: "Invalid email or password." };
+    }
+    return result;
   }
 
   @Post("verify-email")

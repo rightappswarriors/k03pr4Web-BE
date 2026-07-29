@@ -1,7 +1,9 @@
-import { Controller, Get, Param, Post, Body, Query, Headers, Req } from "@nestjs/common";
+import { Controller, Get, Param, Post, Body, Query, Headers, Req, UseGuards } from "@nestjs/common";
 import { WholesaleService } from "../services/wholesale.service";
+import { AgentAuthGuard } from "../guards/agent-auth.guard";
 
 @Controller("wholesale")
+@UseGuards(AgentAuthGuard)
 export class WholesaleController {
   constructor(private readonly wholesale: WholesaleService) { }
 

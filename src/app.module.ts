@@ -8,6 +8,7 @@ import { CartController } from "./controllers/cart.controller";
 import { CatalogController } from "./controllers/catalog.controller";
 import { NotificationController } from "./controllers/notification.controller";
 import { OrderController } from "./controllers/order.controller";
+import { SearchController } from "./controllers/search.controller";
 import { WholesaleController } from "./controllers/wholesale.controller";
 import { AgentAuthGuard } from "./guards/agent-auth.guard";
 import { CacheService } from "./common/cache.service";
@@ -21,8 +22,9 @@ import { DatabaseService } from "./services/database.service";
 import { EmailService } from "./services/email.service";
 import { NotificationService } from "./services/notification.service";
 import { OrderService } from "./services/order.service";
-import { WholesaleService } from "./services/wholesale.service";
 import { PrismaService } from "./services/prisma.service";
+import { SearchService } from "./services/search.service";
+import { WholesaleService } from "./services/wholesale.service";
 
 @Module({
   imports: [
@@ -41,6 +43,7 @@ import { PrismaService } from "./services/prisma.service";
     CatalogController,
     NotificationController,
     OrderController,
+    SearchController,
     WholesaleController,
   ],
   providers: [
@@ -56,7 +59,6 @@ import { PrismaService } from "./services/prisma.service";
     EmailService,
     NotificationService,
     OrderService,
-    WholesaleService,
     PrismaService,
     AgentAuthGuard,
   ],

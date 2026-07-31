@@ -1046,6 +1046,7 @@ model Outlet {
   latitude              Float?
   longitude             Float?
   bannerImage           String?
+  operatingHours        String?
   bir                   String?
   isVatRegistered       Boolean                 @default(false)
   ptu                   String?

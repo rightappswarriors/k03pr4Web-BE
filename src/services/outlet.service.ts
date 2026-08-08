@@ -170,6 +170,7 @@ export class OutletService {
             },
             item: {
                 itemId: inventoryItem.Item.id,
+                inventoryItemId: inventoryItem.id, // NEW — needed for cart add (product_id = InventoryItems.id)
                 name: inventoryItem.Item.name,
                 description: inventoryItem.Item.description,
                 price: inventoryItem.price,

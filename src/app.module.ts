@@ -8,6 +8,7 @@ import { CartController } from "./controllers/cart.controller";
 import { CatalogController } from "./controllers/catalog.controller";
 import { NotificationController } from "./controllers/notification.controller";
 import { OrderController } from "./controllers/order.controller";
+import { OutletController } from "./controllers/outlet.controller";
 import { SearchController } from "./controllers/search.controller";
 import { WholesaleController } from "./controllers/wholesale.controller";
 import { AgentAuthGuard } from "./guards/agent-auth.guard";
@@ -22,6 +23,7 @@ import { DatabaseService } from "./services/database.service";
 import { EmailService } from "./services/email.service";
 import { NotificationService } from "./services/notification.service";
 import { OrderService } from "./services/order.service";
+import { OutletService } from "./services/outlet.service";
 import { PrismaService } from "./services/prisma.service";
 import { SearchService } from "./services/search.service";
 import { WholesaleService } from "./services/wholesale.service";
@@ -40,6 +42,7 @@ import { WholesaleService } from "./services/wholesale.service";
     AgentController,
     AuthController,
     CartController,
+    OutletController,
     CatalogController,
     NotificationController,
     OrderController,
@@ -59,8 +62,11 @@ import { WholesaleService } from "./services/wholesale.service";
     EmailService,
     NotificationService,
     OrderService,
+    OutletService,
     PrismaService,
+    SearchService,
+    WholesaleService,
     AgentAuthGuard,
   ],
 })
-export class AppModule {}
+export class AppModule { }

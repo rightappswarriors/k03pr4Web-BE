@@ -24,3 +24,11 @@ export function parsePositiveId(value: string | number, label = "id") {
   }
   return id;
 }
+
+export function parseRequiredFloat(value: string | undefined, label: string) {
+  const num = Number(value);
+  if (value === undefined || value.trim() === "" || Number.isNaN(num)) {
+    throw new BadRequestException({ error: `Valid ${label} is required.` });
+  }
+  return num;
+}

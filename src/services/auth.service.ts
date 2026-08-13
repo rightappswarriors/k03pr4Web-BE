@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { Injectable, BadRequestException, } from "@nestjs/common";
-=======
 import { Injectable, BadRequestException, UnauthorizedException } from "@nestjs/common";
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 import * as crypto from "node:crypto";
 import * as jwt from "jsonwebtoken";
 import { DatabaseService } from "./database.service";
@@ -35,13 +31,10 @@ export class AuthService {
   private readonly jwtSecret =
     process.env.JWT_SECRET || process.env.SECRET_KEY || "kompra-local-dev-key";
 
-<<<<<<< HEAD
-=======
   /** Access token lifetime: 15 minutes (in seconds) */
   readonly AGENT_ACCESS_TOKEN_EXPIRES_IN = 15 * 60; // 900
   readonly AGENT_REFRESH_TOKEN_EXPIRES_IN = 7 * 24 * 60 * 60; // 604800
 
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   constructor(
     private readonly db: DatabaseService,
     private readonly prisma: PrismaService
@@ -253,14 +246,6 @@ export class AuthService {
     const access = jwt.sign(
       { agent_id: agent.agentId, organization_id: agent.organizationId, verification_status: agent.verificationStatus, agent_type: agent.agentType, email: agent.email, token_type: "access" },
       this.jwtSecret,
-<<<<<<< HEAD
-      { expiresIn: "1d" }
-    );
-    const refresh = jwt.sign(
-      { agent_id: agent.agentId, email: agent.email, token_type: "refresh" },
-      this.jwtSecret,
-      { expiresIn: "7d" }
-=======
       { expiresIn: this.AGENT_ACCESS_TOKEN_EXPIRES_IN }
     );
     // Include a jti (JWT ID) so the refresh token can be revoked server-side.
@@ -268,7 +253,6 @@ export class AuthService {
       { agent_id: agent.agentId, email: agent.email, token_type: "refresh" },
       this.jwtSecret,
       { expiresIn: this.AGENT_REFRESH_TOKEN_EXPIRES_IN, jwtid: `rt_${agent.agentId}_${Date.now()}` }
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
     );
     return { access, refresh };
   }
@@ -291,8 +275,6 @@ export class AuthService {
     }
   }
 
-<<<<<<< HEAD
-=======
   verifyAgentRefreshToken(token?: string) {
     if (!token) return null;
     try {
@@ -388,7 +370,6 @@ export class AuthService {
     });
   }
 
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   async findAgentByEmail(email: string) {/**
     const result = await this.db.query<any>(
       `
@@ -403,12 +384,8 @@ export class AuthService {
 
     const result = await this.prisma.agent.findUnique({
       where: {
-<<<<<<< HEAD
-        email
-=======
         email,
         deletedAt: null,
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
       }, select: {
         email: true,
         fullname: true,
@@ -420,14 +397,6 @@ export class AuthService {
         id: true
       }
     })
-<<<<<<< HEAD
-    if (process.env.NODE_ENV) {
-      console.log("[agent query result] agent:", result)
-    }
-    return result || null
-  }
-
-=======
     return result || null
   }
 
@@ -448,16 +417,11 @@ export class AuthService {
     return result || null;
   }
 
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   async requireAgent(authorization?: string) {
     const token = authorization?.replace(/^Bearer\s+/i, "");
     const payload = this.verifyAgentAccessToken(token);
     if (!payload?.agent_id) return null;
-<<<<<<< HEAD
-    const agent = await this.findAgentByEmail(payload.email || "");
-=======
     const agent = await this.findAgentById(payload.agent_id);
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
     return agent || null;
   }
 
@@ -509,8 +473,6 @@ export class AuthService {
       },
     };
   }
-<<<<<<< HEAD
-=======
 
   // ============================================
   // Supplier (Organization) Authentication
@@ -636,5 +598,4 @@ export class AuthService {
       },
     };
   }
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 }

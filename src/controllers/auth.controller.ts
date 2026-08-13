@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { Body, Controller, Get, Headers, HttpCode, Patch, Post, UploadedFiles, UseInterceptors } from "@nestjs/common";
-=======
 import { Body, Controller, Get, Headers, HttpCode, Patch, Post, UploadedFiles, UseInterceptors, BadRequestException } from "@nestjs/common";
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 import { Throttle } from "@nestjs/throttler";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
 import { CustomerAuthService } from "../services/customer-auth.service";
@@ -32,25 +28,12 @@ export class AuthController {
   @Post("agent/login")
   @HttpCode(200)
   @Throttle({ default: { limit: 8, ttl: 60_000 } })
-<<<<<<< HEAD
-  agentLogin(@Body() body: unknown) {
-=======
   async agentLogin(@Body() body: unknown) {
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
     const { email, password } = body as { email?: string; password?: string };
     if (!email || !password) {
       return { success: false, error: "Email and password are required." };
     }
     if (process.env.NODE_ENV === "development") {
-<<<<<<< HEAD
-      console.log("[agent/login] test response ✅");
-    }
-    const result = this.authService.authenticateAgent(email, password);
-    if (!result) {
-      return { success: false, error: "Invalid email or password." };
-    }
-    return result;
-=======
       console.log("[agent/login] attempting agent login", { email });
     }
     const result = await this.authService.authenticateAgent(email, password);
@@ -123,7 +106,6 @@ export class AuthController {
       },
       message: "Supplier login successful",
     };
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   }
 
   @Post("verify-email")

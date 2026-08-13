@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-import { Controller, Post, Body, Get, Param, ParseIntPipe } from "@nestjs/common";
-import { AgentService, RegisterAgentDto, ApproveAgentDto } from "../services/agent.service";
-
-@Controller("agent")
-export class AgentController {
-  constructor(private readonly agentService: AgentService) {}
-=======
 import { Controller, Post, Body, Get, Param, ParseIntPipe, UseGuards, Req, Query, Delete, Put } from "@nestjs/common";
 import { AgentService, RegisterAgentDto, ApproveAgentDto } from "../services/agent.service";
 import { DashboardService } from "../services/dashboard.service";
@@ -23,7 +15,6 @@ export class AgentController {
     private readonly conversationService: ConversationService,
     private readonly negotiationService: RfqNegotiationService,
   ) {}
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 
   // ============================================
   // SINGLE REGISTRATION ENDPOINT (Steps 1-7)
@@ -70,8 +61,6 @@ export class AgentController {
   }
 
   // ============================================
-<<<<<<< HEAD
-=======
   // Agent Dashboard
   // ============================================
 
@@ -472,7 +461,6 @@ export class AgentController {
   }
 
   // ============================================
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   // Get Agent Details
   // ============================================
 
@@ -569,8 +557,4 @@ export class AgentController {
       message: "Agent rejected successfully",
     };
   }
-<<<<<<< HEAD
-=======
-
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 }

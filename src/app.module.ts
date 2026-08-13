@@ -8,14 +8,8 @@ import { CartController } from "./controllers/cart.controller";
 import { CatalogController } from "./controllers/catalog.controller";
 import { NotificationController } from "./controllers/notification.controller";
 import { OrderController } from "./controllers/order.controller";
-<<<<<<< HEAD
-import { OutletController } from "./controllers/outlet.controller";
-import { SearchController } from "./controllers/search.controller";
-import { WholesaleController } from "./controllers/wholesale.controller";
-=======
 import { WholesaleController } from "./controllers/wholesale.controller";
 import { SupplierController } from "./controllers/supplier.controller";
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 import { AgentAuthGuard } from "./guards/agent-auth.guard";
 import { CacheService } from "./common/cache.service";
 import { AddressService } from "./services/address.service";
@@ -28,12 +22,6 @@ import { DatabaseService } from "./services/database.service";
 import { EmailService } from "./services/email.service";
 import { NotificationService } from "./services/notification.service";
 import { OrderService } from "./services/order.service";
-<<<<<<< HEAD
-import { OutletService } from "./services/outlet.service";
-import { PrismaService } from "./services/prisma.service";
-import { SearchService } from "./services/search.service";
-import { WholesaleService } from "./services/wholesale.service";
-=======
 import { DashboardService } from "./services/dashboard.service";
 import { RfqService } from "./services/rfq.service";
 import { ConversationService } from "./services/conversation.service";
@@ -41,7 +29,6 @@ import { RfqNegotiationService } from "./services/rfqNegotiation.service";
 import { WholesaleService } from "./services/wholesale.service";
 import { PrismaService } from "./services/prisma.service";
 import { RealtimeGateway } from "./gateway/realtime.gateway";
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 
 @Module({
   imports: [
@@ -57,20 +44,11 @@ import { RealtimeGateway } from "./gateway/realtime.gateway";
     AgentController,
     AuthController,
     CartController,
-<<<<<<< HEAD
-    OutletController,
-    CatalogController,
-    NotificationController,
-    OrderController,
-    SearchController,
-    WholesaleController,
-=======
     CatalogController,
     NotificationController,
     OrderController,
     WholesaleController,
     SupplierController,
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
@@ -84,17 +62,6 @@ import { RealtimeGateway } from "./gateway/realtime.gateway";
     DatabaseService,
     EmailService,
     NotificationService,
-<<<<<<< HEAD
-    OrderService,
-    OutletService,
-    PrismaService,
-    SearchService,
-    WholesaleService,
-    AgentAuthGuard,
-  ],
-})
-export class AppModule { }
-=======
     DashboardService,
     OrderService,
     RfqService,
@@ -107,4 +74,3 @@ export class AppModule { }
   ],
 })
 export class AppModule {}
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)

@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from "@nestjs/common";
+import { Controller, Get, Param, Query } from "@nestjs/common";
 import { OutletService } from "../services/outlet.service";
 
 @Controller()
@@ -15,5 +15,13 @@ export class OutletController {
         @Query("limit") limit?: string
     ) {
         return this.outletService.getNearestOutletsForItem(itemId, lat, lng, radiusKm, cursor, limit);
+    }
+
+    @Get("outlets/:outletId/items/:itemId")
+    getOutletItemDetail(
+        @Param("outletId") outletId: string,
+        @Param("itemId") itemId: string
+    ) {
+        return this.outletService.getOutletItemDetail(outletId, itemId);
     }
 }

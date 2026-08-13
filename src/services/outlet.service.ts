@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "./prisma.service";
 import { parsePositiveId, parseRequiredFloat } from "../common/validation";
 
@@ -126,5 +126,75 @@ export class OutletService {
         }));
 
         return { outlets, nextCursor, hasMore };
+    }
+
+    async getOutletItemDetail(outletIdRaw: string, itemIdRaw: string) {
+        const outletId = parsePositiveId(outletIdRaw, "outletId");
+        const itemId = parsePositiveId(itemIdRaw, "itemId");
+
+        const outlet = await this.prisma.outlet.findUnique({
+            where: { id: outletId },
+            include: { OutletDeliveryConfig: true },
+        });
+
+        if (!outlet) {
+            throw new BadRequestException({ error: "Outlet not found." });
+        }
+
+        const inventoryItem = await this.prisma.inventoryItems.findFirst({
+            where: {
+                itemId,
+                Inventory: { outletId },
+            },
+            include: {
+                Item: {
+                    include: {
+                        Media: { orderBy: { sortOrder: "asc" } },
+                    },
+                },
+                InventoryItemUnit: true,
+            },
+        });
+
+        if (!inventoryItem) {
+            throw new BadRequestException({ error: "Item not found at this outlet." });
+        }
+
+        return {
+            outlet: {
+                outletId: outlet.id,
+                name: outlet.name,
+                bio: outlet.bio,
+                bannerImage: outlet.bannerImage,
+                operatingHours: outlet.operatingHours,
+            },
+            item: {
+                itemId: inventoryItem.Item.id,
+                inventoryItemId: inventoryItem.id, // NEW — needed for cart add (product_id = InventoryItems.id)
+                name: inventoryItem.Item.name,
+                description: inventoryItem.Item.description,
+                price: inventoryItem.price,
+                quantity: inventoryItem.quantity,
+                photos: inventoryItem.Item.Media.map((m) => ({
+                    url: m.url,
+                    type: m.type,
+                })),
+                units: inventoryItem.InventoryItemUnit.map((u) => ({
+                    id: u.id,
+                    unitName: u.unitName,
+                    unitLabel: u.unitLabel,
+                    price: u.price,
+                    quantity: u.quantity,
+                    isDefault: u.isDefault,
+                })),
+            },
+            deliveryConfig: outlet.OutletDeliveryConfig
+                ? {
+                    isDeliveryActive: outlet.OutletDeliveryConfig.isDeliveryActive,
+                    baseDeliveryFee: outlet.OutletDeliveryConfig.baseDeliveryFee,
+                    feePerKm: outlet.OutletDeliveryConfig.feePerKm,
+                }
+                : null,
+        };
     }
 }

@@ -16,7 +16,7 @@ export class WholesaleService {
       select: {
         id: true,
         organizationId: true,
-        Organization: { select: { id: true, name: true, verificationStatus: true } },
+        Organization: { select: { id: true, name: true, verificationStatus: true, location: true } },
       },
     },
   };
@@ -643,15 +643,18 @@ export class WholesaleService {
       images: item.image ? [item.image] : [],
       price: item.unitPrice,
       unit: item.unit,
+      sku: item.sku,
       moq: `${item.moq}`,
       sampleAvailable: item.sampleAvailable,
       samplePrice: item.samplePrice,
       leadTime: item.leadTime,
       shippingFrom: item.shippingFrom,
+      availableQty: item.availableQty,
       verified: item.isActive,
       category: item.SupplierItemCategory?.name,
       supplier: item.SupplierCatalog?.Organization?.name,
       supplierVerified: item.SupplierCatalog?.Organization?.verificationStatus === "VERIFIED",
+      supplierLocation: item.SupplierCatalog?.Organization?.location,
     };
   }
 }

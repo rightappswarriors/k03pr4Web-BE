@@ -9,10 +9,10 @@ datasource db {
 
 model AccountTitle {
   id           Int          @id @default(autoincrement())
+  deletedAt    DateTime?
   label        String
   orgId        Int
   code         String?
-  deletedAt    DateTime?
   Organization Organization @relation(fields: [orgId], references: [id])
   GISRow       GISRow[]
   SummaryRow   SummaryRow[]
@@ -24,7 +24,6 @@ model Agent {
   id                       String                     @id @default(cuid())
   agentType                AgentType
   organizationId           Int?
-  fullname                 String
   email                    String                     @unique
   phone                    String?
   passwordHash             String
@@ -36,6 +35,7 @@ model Agent {
   createdAt                DateTime                   @default(now())
   updatedAt                DateTime                   @updatedAt
   deletedAt                DateTime?
+  fullname                 String
   address                  String?
   birthday                 DateTime?
   city                     String?
@@ -55,6 +55,12 @@ model Agent {
   organizationInvitation   ProcurementInvitation?
   SupplierOrganizationLink SupplierOrganizationLink[]
   SupplierOutletLink       SupplierOutletLink[]
+  RequestForQuotation      RequestForQuotation[]
+  ConversationParticipant  ConversationParticipant[]
+  ConversationMessage      ConversationMessage[]
+  NegotiationOffer         NegotiationOffer[]
+  RfqOffer                 RfqOffer[]
+  RevokedRefreshToken      RevokedRefreshToken[]
 
   @@index([agentType, verificationStatus])
   @@index([organizationId])
@@ -77,8 +83,26 @@ model AgentVerification {
   @@index([agentId, status])
 }
 
+<<<<<<< HEAD
 model Attendance {
   id              Int              @id @default(autoincrement())
+=======
+model RevokedRefreshToken {
+  id        String   @id @default(cuid())
+  agentId   String
+  tokenId   String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  Agent     Agent    @relation(fields: [agentId], references: [id])
+
+  @@index([agentId])
+  @@index([expiresAt])
+}
+
+model Attendance {
+  id              Int              @id @default(autoincrement())
+  deletedAt       DateTime?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   userId          Int
   shiftId         Int
   shiftDate       DateTime
@@ -96,7 +120,10 @@ model Attendance {
   noteBreakStart  String?
   noteIn          String?
   noteOut         String?
+<<<<<<< HEAD
   deletedAt       DateTime?
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization    Organization     @relation(fields: [orgId], references: [id])
   Shift           Shift            @relation(fields: [shiftId], references: [id])
   User            User             @relation(fields: [userId], references: [id])
@@ -131,10 +158,17 @@ model Branch {
   phone           String?
   isActive        Boolean           @default(true)
   createdAt       DateTime          @default(now())
+<<<<<<< HEAD
   orgId           Int
   ownerId         Int
   locationId      Int?
   deletedAt       DateTime?
+=======
+  deletedAt       DateTime?
+  orgId           Int
+  ownerId         Int
+  locationId      Int?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization    Organization      @relation(fields: [orgId], references: [id])
   User            User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   Contact         Contact[]
@@ -149,12 +183,19 @@ model Branch {
 
 model Brand {
   id            Int          @id @default(autoincrement())
+<<<<<<< HEAD
+=======
+  deletedAt     DateTime?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   email         String?
   webUrl        String?
   contactNumber String?
   name          String       @unique
   orgId         Int
+<<<<<<< HEAD
   deletedAt     DateTime?
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization  Organization @relation(fields: [orgId], references: [id])
   Item          Item[]
 
@@ -189,9 +230,15 @@ model CartItem {
   discountQuantity  Float?             @default(0)
   discountRate      Float?             @default(0)
   discountType      DiscountType       @default(NONE)
+<<<<<<< HEAD
   finalPrice        Float              @default(0)
   originalPrice     Float              @default(0)
   vatExclusivePrice Float              @default(0)
+=======
+  originalPrice     Float              @default(0)
+  vatExclusivePrice Float              @default(0)
+  finalPrice        Float              @default(0)
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   costSnapshot      Float?
   priceSnapshot     Float?
   Item              Item               @relation(fields: [itemId], references: [id])
@@ -203,9 +250,15 @@ model CartItem {
 
 model Center {
   id           Int          @id @default(autoincrement())
+<<<<<<< HEAD
   label        String
   orgId        Int
   deletedAt    DateTime?
+=======
+  deletedAt    DateTime?
+  label        String
+  orgId        Int
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization Organization @relation(fields: [orgId], references: [id])
   GISRow       GISRow[]
   SummaryRow   SummaryRow[]
@@ -215,9 +268,15 @@ model Center {
 
 model Color {
   id        Int       @id @default(autoincrement())
+<<<<<<< HEAD
   name      String    @unique
   hexCode   String?
   deletedAt DateTime?
+=======
+  deletedAt DateTime?
+  name      String    @unique
+  hexCode   String?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Item      Item[]    @relation("ColorToItem")
 }
 
@@ -245,10 +304,17 @@ model Contact {
 
 model CostLines {
   id        Int       @id @default(autoincrement())
+<<<<<<< HEAD
   itemId    Int
   label     String
   amount    Float
   deletedAt DateTime?
+=======
+  deletedAt DateTime?
+  itemId    Int
+  label     String
+  amount    Float
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Item      Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([itemId])
@@ -267,6 +333,10 @@ model Courier {
 
 model CustomerDetails {
   id              Int         @id @default(autoincrement())
+<<<<<<< HEAD
+=======
+  deletedAt       DateTime?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   fullname        String?
   username        String?
   email           String?
@@ -277,7 +347,10 @@ model CustomerDetails {
   client_key      String?
   status          String?
   transactionId   Int         @unique
+<<<<<<< HEAD
   deletedAt       DateTime?
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Transaction     Transaction @relation(fields: [transactionId], references: [id])
 }
 
@@ -321,10 +394,17 @@ model DeliveryAddress {
 
 model Department {
   id           Int          @id @default(autoincrement())
+<<<<<<< HEAD
   label        String
   color        String?
   orgId        Int
   deletedAt    DateTime?
+=======
+  deletedAt    DateTime?
+  label        String
+  color        String?
+  orgId        Int
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization Organization @relation(fields: [orgId], references: [id])
   User         User[]
 
@@ -336,20 +416,34 @@ model DiscountAudit {
   orgId                  Int
   userId                 Int
   customerId             String?
+<<<<<<< HEAD
   itemId                 Int?
   transactionId          Int?
   salesOrderId           String?
+=======
+  oscaGovId              String?
+  itemId                 Int?
+  salesOrderId           String?
+  transactionId          Int?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   kompraOrderId          Int?
   customItemName         String?
   discountType           DiscountType
   discountAmount         Float
   eligibleAmount         Float?
   runningWeeklyBnpcTotal Float?
+<<<<<<< HEAD
   createdAt              DateTime     @default(now())
   isVoided               Boolean      @default(false)
   oscaGovId              String?
   voidReason             String?
   voidedAt               DateTime?
+=======
+  isVoided               Boolean      @default(false)
+  voidedAt               DateTime?
+  voidReason             String?
+  createdAt              DateTime     @default(now())
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   deletedAt              DateTime?
   Item                   Item?        @relation(fields: [itemId], references: [id])
   User                   User         @relation(fields: [userId], references: [id])
@@ -366,6 +460,10 @@ model DiscountAudit {
 
 model Employee {
   id           String         @id
+<<<<<<< HEAD
+=======
+  deletedAt    DateTime?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   name         String
   role         String
   department   String
@@ -375,7 +473,10 @@ model Employee {
   email        String         @unique
   orgId        Int
   userId       Int?
+<<<<<<< HEAD
   deletedAt    DateTime?
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization Organization   @relation(fields: [orgId], references: [id])
   User         User?          @relation(fields: [userId], references: [id])
 
@@ -442,11 +543,18 @@ model GISRow {
   orgId          Int
   userId         Int?
   createdAt      DateTime     @default(now())
+<<<<<<< HEAD
+=======
+  deletedAt      DateTime?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   accountTitleId Int
   centerId       Int
   subCenterId    Int
   id             Int          @id @unique @default(autoincrement())
+<<<<<<< HEAD
   deletedAt      DateTime?
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   AccountTitle   AccountTitle @relation(fields: [accountTitleId], references: [id])
   Center         Center       @relation(fields: [centerId], references: [id])
   Organization   Organization @relation(fields: [orgId], references: [id])
@@ -459,15 +567,25 @@ model GISRow {
 
 model Inventory {
   id             Int              @id @default(autoincrement())
+<<<<<<< HEAD
   name           String?
   outletId       Int              @unique
   deletedAt      DateTime?
+=======
+  deletedAt      DateTime?
+  name           String?
+  outletId       Int              @unique
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Outlet         Outlet           @relation(fields: [outletId], references: [id], onDelete: Cascade)
   InventoryItems InventoryItems[]
 }
 
 model InventoryItem {
   id           String       @id
+<<<<<<< HEAD
+=======
+  deletedAt    DateTime?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   name         String
   sku          String
   stock        Int
@@ -477,7 +595,10 @@ model InventoryItem {
   lowStock     Boolean
   orgId        Int
   userId       Int?
+<<<<<<< HEAD
   deletedAt    DateTime?
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization Organization @relation(fields: [orgId], references: [id])
   User         User?        @relation(fields: [userId], references: [id])
 
@@ -486,6 +607,10 @@ model InventoryItem {
 
 model InventoryItemUnit {
   id               Int                @id @default(autoincrement())
+<<<<<<< HEAD
+=======
+  deletedAt        DateTime?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   inventoryItemId  Int
   unitName         String
   unitLabel        String
@@ -500,7 +625,10 @@ model InventoryItemUnit {
   maxOrderQty      Float?
   reorderPoint     Float?
   allowDecimal     Boolean            @default(false)
+<<<<<<< HEAD
   deletedAt        DateTime?
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   CartItem         CartItem[]
   InventoryItems   InventoryItems     @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
   KompraCOrderItem KompraCOrderItem[]
@@ -511,6 +639,10 @@ model InventoryItemUnit {
 
 model InventoryItems {
   id                    Int                    @id @default(autoincrement())
+<<<<<<< HEAD
+=======
+  deletedAt             DateTime?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   inventoryId           Int
   itemId                Int
   price                 Float
@@ -518,7 +650,10 @@ model InventoryItems {
   locationId            Int?                   @unique
   categoryId            Int?
   baseUnit              String                 @default("piece")
+<<<<<<< HEAD
   deletedAt             DateTime?
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   InventoryItemUnit     InventoryItemUnit[]
   ItemCategory          ItemCategory?          @relation(fields: [categoryId], references: [id])
   Inventory             Inventory              @relation(fields: [inventoryId], references: [id])
@@ -532,6 +667,10 @@ model InventoryItems {
 
 model Item {
   id                         Int                     @id @default(autoincrement())
+<<<<<<< HEAD
+=======
+  deletedAt                  DateTime?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   name                       String                  @unique
   image                      String?
   description                String?
@@ -545,6 +684,13 @@ model Item {
   itemCode                   String?
   skuNumber                  String?
   vatExempt                  Boolean?
+<<<<<<< HEAD
+=======
+  isVatExempt                Boolean                 @default(false)
+  isBNPC                     Boolean                 @default(false)
+  hasSeniorDiscountVATExempt Boolean                 @default(false)
+  vatRate                    Float                   @default(0.12)
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   stock                      Float                   @default(0)
   sellingPrice               Float                   @default(0)
   minQuantity                Float                   @default(0)
@@ -559,11 +705,14 @@ model Item {
   vatTypeId                  Int?
   stockDescription           String?
   stockLabel                 String?
+<<<<<<< HEAD
   isBNPC                     Boolean                 @default(false)
   isVatExempt                Boolean                 @default(false)
   vatRate                    Float                   @default(0.12)
   hasSeniorDiscountVATExempt Boolean                 @default(false)
   deletedAt                  DateTime?
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   CartItem                   CartItem[]
   CostLines                  CostLines[]
   DiscountAudit              DiscountAudit[]
@@ -602,8 +751,13 @@ model ItemCategory {
   sales           String?
   stocks          String?
   createdAt       DateTime          @default(now())
+<<<<<<< HEAD
   icon            String?
   deletedAt       DateTime?
+=======
+  deletedAt       DateTime?
+  icon            String?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   InventoryItems  InventoryItems[]
   Item            Item[]
   OrgItemCategory OrgItemCategory[]
@@ -636,8 +790,13 @@ model ItemGroup {
   icon            String?
   isActive        Boolean           @default(true)
   createdAt       DateTime          @default(now())
+<<<<<<< HEAD
   orgId           Int
   deletedAt       DateTime?
+=======
+  deletedAt       DateTime?
+  orgId           Int
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization    Organization      @relation(fields: [orgId], references: [id])
   OrgItemCategory OrgItemCategory[]
 
@@ -672,14 +831,24 @@ model ItemPriceHistory {
 
 model ItemUnit {
   id          Int       @id @default(autoincrement())
+<<<<<<< HEAD
   unitName    String    @unique
   description String?
   deletedAt   DateTime?
+=======
+  deletedAt   DateTime?
+  unitName    String    @unique
+  description String?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Item        Item[]    @relation("ItemToItemUnit")
 }
 
 model KompraCDeliveryTracking {
   id           Int                 @id @default(autoincrement())
+<<<<<<< HEAD
+=======
+  deletedAt    DateTime?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   orderId      Int
   event        DeliveryStatusEvent
   statusAt     DateTime            @default(now())
@@ -688,7 +857,10 @@ model KompraCDeliveryTracking {
   note         String?
   actorType    String
   actorId      Int?
+<<<<<<< HEAD
   deletedAt    DateTime?
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   KompraCOrder KompraCOrder        @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, statusAt])
@@ -713,6 +885,7 @@ model KompraCOrder {
   riderPhone              String?
   customerNote            String?
   outletNote              String?
+<<<<<<< HEAD
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime
   courierId               Int?
@@ -732,6 +905,27 @@ model KompraCOrder {
   shippedAt               DateTime?
   deletedAt               DateTime?
   inventoryDeductedAt     DateTime?
+=======
+  cancelNote              String?
+  createdAt               DateTime                  @default(now())
+  packedAt                DateTime?
+  shippedAt               DateTime?
+  placedAt                DateTime?
+  cancelledAt             DateTime?
+  updatedAt               DateTime
+  inventoryDeductedAt     DateTime?
+  deletedAt               DateTime?
+  courierId               Int?
+  scPwdCustomerId         String?
+  customerType            CustomerType?             @default(REGULAR)
+  discountType            DiscountType?             @default(NONE)
+  scPwdPax                Int?
+  totalPax                Int?
+  vatExemptSale           Float?                    @default(0)
+  discountAmount          Float?                    @default(0)
+  vatAmount               Float?                    @default(0)
+  grandTotal              Float?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   checkoutGroupId         String?
   KompraCDeliveryTracking KompraCDeliveryTracking[]
   Courier                 Courier?                  @relation(fields: [courierId], references: [id])
@@ -748,16 +942,27 @@ model KompraCOrder {
 
 model KompraCOrderFee {
   id           Int          @id @default(autoincrement())
+<<<<<<< HEAD
+=======
+  deletedAt    DateTime?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   orderId      Int
   type         FeeType
   label        String
   amount       Float
+<<<<<<< HEAD
   deletedAt    DateTime?
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   KompraCOrder KompraCOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model KompraCOrderItem {
   id                Int                @id @default(autoincrement())
+<<<<<<< HEAD
+=======
+  deletedAt         DateTime?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   orderId           Int
   inventoryItemId   Int
   itemId            Int
@@ -765,7 +970,10 @@ model KompraCOrderItem {
   priceSnapshot     Float
   subtotal          Float
   unitId            Int?
+<<<<<<< HEAD
   deletedAt         DateTime?
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   costSnapshot      Float?
   InventoryItems    InventoryItems     @relation(fields: [inventoryItemId], references: [id])
   Item              Item               @relation(fields: [itemId], references: [id])
@@ -785,8 +993,13 @@ model KompraCustomer {
   isActive            Boolean               @default(true)
   createdAt           DateTime              @default(now())
   updatedAt           DateTime
+<<<<<<< HEAD
   phone               String?               @unique
   deletedAt           DateTime?
+=======
+  deletedAt           DateTime?
+  phone               String?               @unique
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   CustomerDeviceToken CustomerDeviceToken[]
   DeliveryAddress     DeliveryAddress[]
   KompraCOrder        KompraCOrder[]
@@ -794,10 +1007,17 @@ model KompraCustomer {
 
 model Location {
   id             Int             @id @default(autoincrement())
+<<<<<<< HEAD
   aisle          String?
   rack           String?
   shelf          String?
   deletedAt      DateTime?
+=======
+  deletedAt      DateTime?
+  aisle          String?
+  rack           String?
+  shelf          String?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   InventoryItems InventoryItems?
 }
 
@@ -870,11 +1090,18 @@ model MandateTransaction {
 
 model Media {
   id        Int        @id @default(autoincrement())
+<<<<<<< HEAD
+=======
+  deletedAt DateTime?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   url       String
   type      MediaType?
   itemId    Int?
   sortOrder Int        @default(0)
+<<<<<<< HEAD
   deletedAt DateTime?
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Item      Item?      @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([itemId, sortOrder])
@@ -931,8 +1158,17 @@ model OrgItemCategory {
 model Organization {
   id                                                                            Int                            @id @default(autoincrement())
   name                                                                          String
+<<<<<<< HEAD
   createdAt                                                                     DateTime                       @default(now())
   bannerImg                                                                     String?
+=======
+  roles                                                                         OrgRole[]                      @default([SELLER])
+  createdAt                                                                     DateTime                       @default(now())
+  updatedAt                                                                     DateTime?
+  deletedAt                                                                     DateTime?
+  bannerImg                                                                     String?
+  profileImg                                                                    String?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   contactNumber                                                                 String?
   email                                                                         String?
   location                                                                      String?
@@ -941,6 +1177,7 @@ model Organization {
   instagramLink                                                                 String?
   twitterLink                                                                   String?
   bio                                                                           String?
+<<<<<<< HEAD
   deletedAt                                                                     DateTime?
   updatedAt                                                                     DateTime?
   profileImg                                                                    String?
@@ -948,6 +1185,12 @@ model Organization {
   isDevSeed                                                                     Boolean                        @default(false)
   verificationExpiresAt                                                         DateTime?
   verificationStatus                                                            OrgVerificationStatus          @default(UNVERIFIED)
+=======
+  isDevSeed                                                                     Boolean                        @default(false)
+  verificationExpiresAt                                                         DateTime?
+  verificationStatus                                                            OrgVerificationStatus          @default(UNVERIFIED)
+  passwordHash                                                                  String?
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   AccountTitle                                                                  AccountTitle[]
   Agent                                                                         Agent[]
   Attendance                                                                    Attendance[]
@@ -1000,6 +1243,14 @@ model Organization {
   User                                                                          User[]
   VatType                                                                       VatType[]
   Wallet                                                                        Wallet?
+<<<<<<< HEAD
+=======
+  RequestForQuotation                                                           RequestForQuotation[]
+  ConversationParticipant                                                       ConversationParticipant[]
+  ConversationMessage                                                           ConversationMessage[]
+  NegotiationOffer                                                            NegotiationOffer[]
+  RfqOffer                                                                    RfqOffer[]
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 }
 
 model OrganizationReview {
@@ -1037,6 +1288,7 @@ model Outlet {
   isActive              Boolean                 @default(true)
   wifiSSID              String?
   createdAt             DateTime                @default(now())
+  deletedAt             DateTime?
   orgId                 Int
   branchId              Int?
   ownerId               Int
@@ -1054,7 +1306,6 @@ model Outlet {
   tin                   String?
   vatTypeId             Int?
   vatZeroSale           Float?                  @default(0)
-  deletedAt             DateTime?
   Inventory             Inventory?
   KompraCOrder          KompraCOrder[]
   Notification          Notification[]
@@ -1080,6 +1331,7 @@ model Outlet {
 
 model OutletDeliveryConfig {
   id               Int       @id @default(autoincrement())
+  deletedAt        DateTime?
   outletId         Int       @unique
   isDeliveryActive Boolean   @default(true)
   deliveryRadiusKm Float     @default(5.0)
@@ -1088,7 +1340,6 @@ model OutletDeliveryConfig {
   minOrderAmount   Float?
   maxOrderAmount   Float?
   avgPrepMins      Int       @default(15)
-  deletedAt        DateTime?
   Outlet           Outlet    @relation(fields: [outletId], references: [id], onDelete: Cascade)
 }
 
@@ -1117,9 +1368,9 @@ model OutletPromo {
   discount    Float
   isActive    Boolean       @default(true)
   createdAt   DateTime      @default(now())
+  deletedAt   DateTime?
   userId      Int
   vatable     Boolean       @default(false)
-  deletedAt   DateTime?
   Outlet      Outlet        @relation(fields: [outletId], references: [id], onDelete: Cascade)
   PromoType   PromoType     @relation(fields: [promoTypeId], references: [id], onDelete: Cascade)
   User        User          @relation(fields: [userId], references: [id])
@@ -1154,12 +1405,12 @@ model POLineItem {
 
 model Page {
   id                     String                   @id
+  deletedAt              DateTime?
   key                    String                   @unique
   label                  String
   parentKey              String?
-  sortOrder              Int                      @default(0)
-  deletedAt              DateTime?
   access                 Access                   @default(SELLER)
+  sortOrder              Int                      @default(0)
   PositionPermission     PositionPermission[]
   UserPermissionOverride UserPermissionOverride[]
 }
@@ -1202,10 +1453,10 @@ model PaymentTransaction {
 
 model PaymongoAPIKeys {
   id         Int       @id @default(autoincrement())
+  deletedAt  DateTime?
   public_key String
   secret_key String
   ownerId    Int       @unique
-  deletedAt  DateTime?
   Outlet     Outlet[]
   User       User      @relation(fields: [ownerId], references: [id])
 }
@@ -1231,11 +1482,11 @@ model PayoutMethod {
 
 model PlaceLocation {
   id        Int       @id @default(autoincrement())
+  deletedAt DateTime?
   address   String
   latitude  Float
   longitude Float
   branchId  Int       @unique
-  deletedAt DateTime?
   Branch    Branch    @relation(fields: [branchId], references: [id])
 }
 
@@ -1297,9 +1548,9 @@ model PromoType {
   description  String?
   isActive     Boolean       @default(true)
   createdAt    DateTime      @default(now())
+  deletedAt    DateTime?
   orgId        Int
   userId       Int?
-  deletedAt    DateTime?
   OutletPromo  OutletPromo[]
   Organization Organization  @relation(fields: [orgId], references: [id])
   User         User?         @relation(fields: [userId], references: [id])
@@ -1326,7 +1577,18 @@ model PurchaseOrder {
   Organization_PurchaseOrder_buyerOrgIdToOrganization    Organization              @relation("PurchaseOrder_buyerOrgIdToOrganization", fields: [buyerOrgId], references: [id])
   Outlet                                                 Outlet                    @relation(fields: [deliveryOutletId], references: [id])
   Organization_PurchaseOrder_supplierOrgIdToOrganization Organization              @relation("PurchaseOrder_supplierOrgIdToOrganization", fields: [supplierOrgId], references: [id])
-  SupplierOrganizationLink                               SupplierOrganizationLink? @relation(fields: [supplierOrganizationLinkId], references: [id])
+   SupplierOrganizationLink                               SupplierOrganizationLink? @relation(fields: [supplierOrganizationLinkId], references: [id])
+   PurchaseOrderRFQ                                       PurchaseOrderRFQ[]
+}
+
+model PurchaseOrderRFQ {
+  id        String               @id @default(cuid())
+  poId      String
+  rfqId     String
+  po        PurchaseOrder        @relation(fields: [poId], references: [id])
+  rfq       RequestForQuotation  @relation(fields: [rfqId], references: [id])
+
+  @@unique([poId, rfqId])
 }
 
 model ReceivedItemMap {
@@ -1356,12 +1618,12 @@ model RestockCycle {
   firedAt          DateTime?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime
+  deletedAt        DateTime?
   address          String?
   branchId         Int?
   latitude         Float?
   longitude        Float?
   outletId         Int?
-  deletedAt        DateTime?
   Branch           Branch?            @relation(fields: [branchId], references: [id])
   Organization     Organization       @relation(fields: [orgId], references: [id])
   Outlet           Outlet?            @relation(fields: [outletId], references: [id])
@@ -1375,10 +1637,10 @@ model RestockCycle {
 
 model RestockCycleItem {
   id           Int          @id @default(autoincrement())
+  deletedAt    DateTime?
   cycleId      Int
   itemId       Int
   quantity     Float
-  deletedAt    DateTime?
   RestockCycle RestockCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
   Item         Item         @relation(fields: [itemId], references: [id])
 
@@ -1401,6 +1663,7 @@ model RestockSchedule {
   isActive            Boolean               @default(true)
   createdAt           DateTime              @default(now())
   updatedAt           DateTime
+  deletedAt           DateTime?
   lastTriggeredAt     DateTime?
   customTimes         Json?
   branchId            Int?
@@ -1408,7 +1671,6 @@ model RestockSchedule {
   address             String?
   latitude            Float?
   longitude           Float?
-  deletedAt           DateTime?
   RestockCycle        RestockCycle[]
   Branch              Branch?               @relation(fields: [branchId], references: [id])
   Organization        Organization          @relation(fields: [orgId], references: [id])
@@ -1419,13 +1681,13 @@ model RestockSchedule {
 
 model RestockScheduleItem {
   id              Int             @id @default(autoincrement())
+  deletedAt       DateTime?
   scheduleId      Int
   itemId          Int
   quantity        Float
   dayOfMonth      Int?
   dayOfWeek       Int?
   timeOfDay       String?
-  deletedAt       DateTime?
   Item            Item            @relation(fields: [itemId], references: [id])
   RestockSchedule RestockSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
@@ -1443,37 +1705,37 @@ model SalaryHistory {
 
 model SalesOrder {
   id                  String              @id
+  orderNumber         String              @unique
   customer            String
-  total               Float               @default(0)
+  orderMode           OrderMode           @default(WALK_IN)
+  status              SalesOrderStatus    @default(PENDING)
   date                DateTime            @default(now())
+  updatedAt           DateTime
+  inventoryDeductedAt DateTime?
+  deletedAt           DateTime?
   orgId               Int
   userId              Int?
-  branchId            Int?
-  discountAmount      Float               @default(0)
-  discountRate        Float               @default(0)
-  orderNumber         String              @unique
   outletId            Int?
-  outletPromoId       Int?
-  subtotal            Float               @default(0)
-  updatedAt           DateTime
-  vatAmount           Float               @default(0)
-  vatRate             Float               @default(0)
-  status              SalesOrderStatus    @default(PENDING)
-  customerContact     String?
+  branchId            Int?
   customerName        String?
+  customerContact     String?
   customerType        CustomerType        @default(REGULAR)
+  discountType        DiscountType        @default(NONE)
+  vatExemptSale       Float               @default(0)
+  totalPax            Int?
+  scPwdPax            Int?
+  scPwdCustomerId     String?
   deliveryAddress     String?
   deliveryNotes       String?
-  discountType        DiscountType        @default(NONE)
+  subtotal            Float               @default(0)
+  discountAmount      Float               @default(0)
+  vatAmount           Float               @default(0)
+  total               Float               @default(0)
+  vatRate             Float               @default(0)
+  discountRate        Float               @default(0)
   extraChargesTotal   Float               @default(0)
   grandTotal          Float               @default(0)
-  orderMode           OrderMode           @default(WALK_IN)
-  scPwdCustomerId     String?
-  scPwdPax            Int?
-  totalPax            Int?
-  vatExemptSale       Float               @default(0)
-  deletedAt           DateTime?
-  inventoryDeductedAt DateTime?
+  outletPromoId       Int?
   ExtraCharge         ExtraCharge[]
   Branch              Branch?             @relation(fields: [branchId], references: [id])
   Organization        Organization        @relation(fields: [orgId], references: [id])
@@ -1492,6 +1754,7 @@ model SalesOrder {
 
 model SalesOrderDelivery {
   id             Int        @id @default(autoincrement())
+  deletedAt      DateTime?
   salesOrderId   String     @unique
   courierName    String?
   trackingNumber String?
@@ -1502,29 +1765,28 @@ model SalesOrderDelivery {
   estimatedDate  DateTime?
   shippedAt      DateTime?
   receivedAt     DateTime?
-  deletedAt      DateTime?
   SalesOrder     SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
 }
 
 model SalesOrderItem {
   id               Int          @id @default(autoincrement())
+  deletedAt        DateTime?
   salesOrderId     String
   itemId           Int?
   quantity         Float
   unitPrice        Float
   totalPrice       Float
-  unitId           Int?
-  unitName         String?
-  discountAmount   Float?       @default(0)
   discountQuantity Float?       @default(0)
   discountRate     Float?       @default(0)
-  customItemName   String?
-  isCustomItem     Boolean      @default(false)
-  vatExempt        Boolean      @default(false)
+  discountAmount   Float?       @default(0)
   discountType     DiscountType @default(NONE)
-  deletedAt        DateTime?
+  unitId           Int?
+  unitName         String?
   costSnapshot     Float?
   priceSnapshot    Float?
+  isCustomItem     Boolean      @default(false)
+  customItemName   String?
+  vatExempt        Boolean      @default(false)
   Item             Item?        @relation(fields: [itemId], references: [id])
   SalesOrder       SalesOrder   @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
 
@@ -1536,20 +1798,20 @@ model ScPwdCustomer {
   orgId                  Int?
   fullName               String
   idNumber               String
+  oscaId                 String?        @unique
+  govId                  String?        @unique
   idType                 String
   customerType           CustomerType
   dateOfBirth            DateTime?
   contactNumber          String?
   address                String?
+  bnpcCapManuallyReached Boolean        @default(false)
+  bnpcCapManualReason    String?
   isRepresentative       Boolean        @default(false)
   representativeName     String?
   representativeIdNumber String?
   createdAt              DateTime       @default(now())
   updatedAt              DateTime
-  bnpcCapManualReason    String?
-  bnpcCapManuallyReached Boolean        @default(false)
-  govId                  String?        @unique
-  oscaId                 String?        @unique
   deletedAt              DateTime?
   KompraCOrder           KompraCOrder[]
   SalesOrder             SalesOrder[]
@@ -1567,12 +1829,12 @@ model ScPwdCustomer {
 
 model Shift {
   id            Int          @id @default(autoincrement())
+  deletedAt     DateTime?
   name          String
   startTime     DateTime
   endTime       DateTime
   breakDuration Int          @default(0)
   orgId         Int
-  deletedAt     DateTime?
   Attendance    Attendance[]
   Organization  Organization @relation(fields: [orgId], references: [id])
   UserShift     UserShift[]
@@ -1582,6 +1844,7 @@ model Shift {
 
 model StockBatch {
   id              Int          @id @default(autoincrement())
+  deletedAt       DateTime?
   itemId          Int
   orgId           Int
   orderId         Int?
@@ -1591,7 +1854,6 @@ model StockBatch {
   expiryEndDate   DateTime?
   exactExpiryDate DateTime?
   receivedAt      DateTime     @default(now())
-  deletedAt       DateTime?
   Item            Item         @relation(fields: [itemId], references: [id])
   Organization    Organization @relation(fields: [orgId], references: [id])
 
@@ -1601,9 +1863,9 @@ model StockBatch {
 
 model StockLocation {
   id        Int       @id @default(autoincrement())
+  deletedAt DateTime?
   name      String
   address   String
-  deletedAt DateTime?
 }
 
 model StockMovement {
@@ -1619,16 +1881,16 @@ model StockMovement {
   referenceType   String?
   reason          String?
   createdAt       DateTime          @default(now())
-  createdBy       Int
   deletedAt       DateTime?
+  createdBy       Int
   Item            Item              @relation(fields: [itemId], references: [id])
 }
 
 model SubCenter {
   id           Int          @id @default(autoincrement())
+  deletedAt    DateTime?
   label        String
   orgId        Int
-  deletedAt    DateTime?
   GISRow       GISRow[]
   Organization Organization @relation(fields: [orgId], references: [id])
   SummaryRow   SummaryRow[]
@@ -1658,6 +1920,7 @@ model SummaryRow {
   orgId            Int
   userId           Int?
   createdAt        DateTime     @default(now())
+  deletedAt        DateTime?
   itemId           Int?
   itemName         String?
   accountTitleId   Int
@@ -1673,7 +1936,6 @@ model SummaryRow {
   opExAmount       Float        @default(0)
   vatInput         Float?       @default(0)
   vatOutput        Float?       @default(0)
-  deletedAt        DateTime?
   AccountTitle     AccountTitle @relation(fields: [accountTitleId], references: [id])
   Center           Center       @relation(fields: [centerId], references: [id])
   Item             Item?        @relation(fields: [itemId], references: [id])
@@ -1759,17 +2021,17 @@ model SupplierItem {
   isActive                  Boolean                     @default(true)
   createdAt                 DateTime                    @default(now())
   updatedAt                 DateTime
-  categoryId                String?
-  currentCost               Float                       @default(0)
   damagedQty                Float                       @default(0)
-  deletedAt                 DateTime?
-  groupId                   String?
   image                     String?
   incomingQty               Float                       @default(0)
   reorderLevel              Float?
   reorderQty                Float?
   reservedQty               Float                       @default(0)
   returnedQty               Float                       @default(0)
+  deletedAt                 DateTime?
+  currentCost               Float                       @default(0)
+  categoryId                String?
+  groupId                   String?
   leadTime                  String?
   sampleAvailable           Boolean                     @default(false)
   samplePrice               Float?
@@ -1799,6 +2061,7 @@ model SupplierItem {
   WholesalePackaging        WholesalePackaging?
   WholesaleQuote            WholesaleQuote[]
   WholesaleShipping         WholesaleShipping?
+  RequestForQuotation       RequestForQuotation[]
 
   @@unique([catalogId, sku])
 }
@@ -1826,11 +2089,11 @@ model WholesalePackaging {
   packageLength  Float?
   packageWidth   Float?
   packageHeight  Float?
+  grossWeight    Float?
+  netWeight      Float?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime
   deletedAt      DateTime?
-  grossWeight    Float?
-  netWeight      Float?
   SupplierItem   SupplierItem @relation(fields: [supplierItemId], references: [id], onDelete: Cascade)
 }
 
@@ -1840,12 +2103,12 @@ model WholesaleShipping {
   originCountry  String?
   originProvince String?
   originCity     String?
+  shippingMethod String?
   estimatedDays  Int?
   shippingNotes  String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime?
   deletedAt      DateTime?
-  shippingMethod String?
   SupplierItem   SupplierItem @relation(fields: [supplierItemId], references: [id], onDelete: Cascade)
 }
 
@@ -1853,14 +2116,14 @@ model WholesaleDocument {
   id             String           @id @default(cuid())
   supplierItemId String
   title          String?
+  type           WholesaleDocType
   fileUrl        String
   verified       Boolean          @default(false)
+  verifiedById   Int?
+  verifiedAt     DateTime?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime
   deletedAt      DateTime?
-  verifiedAt     DateTime?
-  verifiedById   Int?
-  type           WholesaleDocType
   SupplierItem   SupplierItem     @relation(fields: [supplierItemId], references: [id], onDelete: Cascade)
   User           User?            @relation(fields: [verifiedById], references: [id])
 
@@ -1871,6 +2134,7 @@ model WholesaleDocument {
 model SupplierCapability {
   id             String                 @id @default(cuid())
   organizationId Int
+  type           SupplierCapabilityType
   name           String
   icon           String?
   available      Boolean                @default(true)
@@ -1878,7 +2142,6 @@ model SupplierCapability {
   createdAt      DateTime               @default(now())
   updatedAt      DateTime
   deletedAt      DateTime?
-  type           SupplierCapabilityType
   Organization   Organization           @relation(fields: [organizationId], references: [id])
 
   @@index([organizationId])
@@ -1903,6 +2166,225 @@ model WholesaleQuote {
 
   @@index([productId])
   @@index([status])
+}
+
+enum RfqStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  NEGOTIATING
+  SUPPLIER_OFFERED
+  BUYER_COUNTERED
+  NEGOTIATION_COMPLETED
+  NEGOTIATION_ACCEPTED
+  PO_CREATED
+  CANCELLED
+  EXPIRED
+  RFQ_RECEIVED
+  PENDING_SUPPLIER_RESPONSE
+  COUNTER_OFFERED
+  AGENT_ACCEPTED_FINAL
+  SUPPLIER_ACCEPTED_FINAL
+  WAITING_SUPPLIER_CONFIRMATION
+}
+
+enum RfqOfferType {
+  INITIAL_REQUEST
+  COUNTER_OFFER
+  FINAL_OFFER
+  ACCEPTANCE
+  REJECTION
+}
+
+enum RfqOfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum MessageType {
+  TEXT
+  RFQ_CREATED
+  COUNTER_OFFER
+  FINAL_OFFER
+  PRICE_ACCEPTED
+  PRICE_REJECTED
+  SYSTEM
+  ORDER_CREATED
+  PAYMENT_UPDATE
+  OFFER_ACCEPTED
+  OFFER_REJECTED
+  SUPPLIER_CONFIRMED
+  CONSOLIDATED_PO_CREATED
+}
+
+enum NegotiationStatus {
+  PENDING
+  AGENT_ACCEPTED
+  WAITING_SUPPLIER_CONFIRMATION
+  SUPPLIER_CONFIRMED
+  PO_CREATED
+  REJECTED
+}
+
+enum NegotiationOfferStatus {
+  PENDING
+  COUNTERED
+  ACCEPTED
+  REJECTED
+}
+
+model RequestForQuotation {
+  id                   String           @id
+  rfqNumber            String           @unique
+  agentId              String
+  supplierOrgId        Int?
+  supplierOrgName      String?
+  supplierItemId       String?
+  status               RfqStatus        @default(DRAFT)
+  conversationId       String?           @unique
+  targetUnitPrice      Float?
+  quantity             String?
+  expectedDeliveryDate DateTime?
+  validityDays         Int?
+  notes                String?
+  acceptedPrice        Float?
+  acceptedQuantity     Float?
+  acceptedDeliveryDate DateTime?
+   agentAcceptedAt      DateTime?
+   supplierAcceptedAt   DateTime?
+   supplierConfirmedAt  DateTime?
+   createdAt            DateTime         @default(now())
+   updatedAt            DateTime         @updatedAt
+   deletedAt            DateTime?
+   Agent                Agent?           @relation(fields: [agentId], references: [id])
+   Organization         Organization?    @relation(fields: [supplierOrgId], references: [id])
+   SupplierItem         SupplierItem?    @relation(fields: [supplierItemId], references: [id])
+   Conversation         Conversation?    @relation(fields: [conversationId], references: [id])
+   RfqOffer             RfqOffer[]
+   PurchaseOrderRFQ     PurchaseOrderRFQ[]
+
+   @@index([agentId, status])
+   @@index([supplierOrgId, status])
+   @@index([supplierItemId])
+   @@index([status])
+  @@index([createdAt])
+}
+
+model Conversation {
+  id                     String                    @id @default(cuid())
+  rfqId                  String?                   @unique
+  type                   ConversationType          @default(RFQ)
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  deletedAt              DateTime?
+  RequestForQuotation    RequestForQuotation?
+  ConversationParticipant ConversationParticipant[]
+  ConversationMessage    ConversationMessage[]
+  NegotiationOffer       NegotiationOffer[]
+
+  @@index([rfqId])
+}
+
+enum ConversationType {
+  RFQ
+  ORDER
+}
+
+model ConversationParticipant {
+  id              String             @id @default(cuid())
+  conversationId  String
+  agentId         String?
+  organizationId  Int?
+  role            ConversationRole   @default(AGENT)
+  joinedAt        DateTime           @default(now())
+  lastReadAt      DateTime?
+  Conversation    Conversation       @relation(fields: [conversationId], references: [id])
+  Agent           Agent?             @relation(fields: [agentId], references: [id])
+  Organization    Organization?      @relation(fields: [organizationId], references: [id])
+
+  @@index([conversationId])
+  @@index([agentId])
+  @@index([organizationId])
+}
+
+enum ConversationRole {
+  AGENT
+  SUPPLIER
+}
+
+model ConversationMessage {
+  id              String        @id @default(cuid())
+  conversationId  String
+  senderAgentId   String?
+  senderOrgId     Int?
+  message         String
+  type            MessageType   @default(TEXT)
+  rfqOfferId      String?
+  createdAt       DateTime      @default(now())
+  attachments     String[]      @default([])
+  deliveredAt     DateTime?
+  seenAt          DateTime?
+   clientMessageId String?
+   metadata        Json?
+   Conversation    Conversation  @relation(fields: [conversationId], references: [id])
+  Agent           Agent?        @relation(fields: [senderAgentId], references: [id])
+  Organization    Organization? @relation(fields: [senderOrgId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@index([senderAgentId])
+  @@index([senderOrgId])
+  @@index([rfqOfferId])
+  @@index([clientMessageId])
+}
+
+model NegotiationOffer {
+  id                  String                  @id @default(cuid())
+  conversationId      String
+  senderType          ConversationRole
+  senderAgentId       String?
+  senderOrgId         Int?
+  quantity            Float
+  unitPrice           Float
+  deliveryDate        DateTime?
+  minimumOrderQuantity Int?
+  estimatedLeadTime    String?
+  validUntil           DateTime?
+  notes               String?
+    status              NegotiationOfferStatus  @default(PENDING)
+    negotiationStatus   NegotiationStatus?      @default(PENDING)
+    createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  Conversation        Conversation            @relation(fields: [conversationId], references: [id])
+  Agent               Agent?                  @relation(fields: [senderAgentId], references: [id])
+  Organization        Organization?           @relation(fields: [senderOrgId], references: [id])
+
+  @@index([conversationId, status])
+  @@index([conversationId, createdAt])
+}
+
+model RfqOffer {
+  id                  String          @id
+  rfqId               String
+  senderAgentId       String?
+  senderSupplierId    Int?
+  offerType           RfqOfferType
+  unitPrice           Float
+  quantity            Int
+  estimatedLeadDays   Int?
+  validUntil          DateTime?
+  deliveryDate        DateTime?
+  notes               String?
+  status              RfqOfferStatus   @default(PENDING)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  RequestForQuotation RequestForQuotation @relation(fields: [rfqId], references: [id])
+  Agent               Agent?           @relation(fields: [senderAgentId], references: [id])
+  Organization        Organization?    @relation(fields: [senderSupplierId], references: [id])
+
+  @@index([rfqId, status])
+  @@index([rfqId, createdAt])
 }
 
 model SupplierItemCategory {
@@ -1992,8 +2474,8 @@ model SupplierOrder {
   expectedArrival   DateTime
   createdAt         DateTime            @default(now())
   updatedAt         DateTime
-  cycleId           Int?
   deletedAt         DateTime?
+  cycleId           Int?
   RestockCycle      RestockCycle?       @relation(fields: [cycleId], references: [id])
   Organization      Organization        @relation(fields: [orgId], references: [id])
   RestockSchedule   RestockSchedule?    @relation(fields: [scheduleId], references: [id])
@@ -2005,6 +2487,7 @@ model SupplierOrder {
 
 model SupplierOrderItem {
   id              Int           @id @default(autoincrement())
+  deletedAt       DateTime?
   orderId         Int
   itemId          Int
   requestedQty    Float
@@ -2013,7 +2496,6 @@ model SupplierOrderItem {
   expiryStartDate DateTime?
   expiryEndDate   DateTime?
   exactExpiryDate DateTime?
-  deletedAt       DateTime?
   Item            Item          @relation(fields: [itemId], references: [id])
   SupplierOrder   SupplierOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -2026,17 +2508,17 @@ model SupplierOutletLink {
   outletId             Int
   isApproved           Boolean            @default(false)
   createdAt            DateTime           @default(now())
-  archivedAt           DateTime?
-  assignedAgentId      String?
-  creditTerms          String?
-  deletedAt            DateTime?
-  deliveryInstructions String?
-  linkedAt             DateTime?
-  notes                String?
-  pausedAt             DateTime?
-  preferredWarehouseId String?
-  receivingHours       String?
   status               SupplierLinkStatus @default(REQUESTED)
+  assignedAgentId      String?
+  preferredWarehouseId String?
+  deliveryInstructions String?
+  receivingHours       String?
+  creditTerms          String?
+  notes                String?
+  linkedAt             DateTime?
+  pausedAt             DateTime?
+  archivedAt           DateTime?
+  deletedAt            DateTime?
   updatedAt            DateTime
   Agent                Agent?             @relation(fields: [assignedAgentId], references: [id])
   Outlet               Outlet             @relation(fields: [outletId], references: [id])
@@ -2130,24 +2612,24 @@ model Transaction {
   paymentMethod     PaymentMethod
   status            Status
   createdAt         DateTime
+  deletedAt         DateTime?
   syncedAt          DateTime         @default(now())
   customerDetailsId Int?
+  customerType      CustomerType     @default(REGULAR)
+  scPwdCustomerId   String?
   isVatExempt       Boolean          @default(false)
   scPwdDiscountAmt  Float?
   vatExemptAmount   Float?
+  vatExemptSale     Float            @default(0)
   vatExemptRefNo    String?
   vatExemptType     VatExemptType?
+  discountType      DiscountType     @default(NONE)
+  discountRate      Float            @default(0)
   discountAmount    Float            @default(0)
+  totalPax          Int?
+  scPwdPax          Int?
   outletPromoId     Int?
   promoDiscountAmt  Float?
-  customerType      CustomerType     @default(REGULAR)
-  discountRate      Float            @default(0)
-  scPwdCustomerId   String?
-  scPwdPax          Int?
-  totalPax          Int?
-  vatExemptSale     Float            @default(0)
-  discountType      DiscountType     @default(NONE)
-  deletedAt         DateTime?
   CartItem          CartItem[]
   CustomerDetails   CustomerDetails?
   User              User?            @relation(fields: [cashierId], references: [id])
@@ -2172,24 +2654,24 @@ model User {
   password                                                        String
   createdAt                                                       DateTime                 @default(now())
   profilePhoto                                                    String?
+  isActive                                                        Boolean                  @default(true)
   managerId                                                       Int?
   enabledPaymentMethod                                            Boolean                  @default(false)
   contactNumber                                                   String?
   orgId                                                           Int?
+  salary                                                          Float?
   isVerified                                                      Boolean                  @default(false)
   verificationCode                                                String?
+  country                                                         String?
+  zipCode                                                         String?
+  city                                                            String?
+  address                                                         String?
+  dateOfBirth                                                     DateTime?
   isOwner                                                         Boolean                  @default(false)
   positionId                                                      String?
   departmentId                                                    Int?
-  address                                                         String?
-  city                                                            String?
-  dateOfBirth                                                     DateTime?
-  zipCode                                                         String?
-  country                                                         String?
   updatedAt                                                       DateTime?
   deletedAt                                                       DateTime?
-  isActive                                                        Boolean                  @default(true)
-  salary                                                          Float?
   approvalStatus                                                  ApprovalStatus           @default(PENDING)
   Attendance                                                      Attendance[]
   AuditLog                                                        AuditLog[]
@@ -2252,10 +2734,10 @@ model UserShift {
 
 model VatType {
   id           Int          @id @default(autoincrement())
+  deletedAt    DateTime?
   orgId        Int
   name         String
   rate         Float
-  deletedAt    DateTime?
   Item         Item[]
   Outlet       Outlet[]
   SummaryRow   SummaryRow[]
@@ -3182,8 +3664,12 @@ enum NotificationType {
   OUTLET_LOW_STOCK
   ORG_CRITICAL_STOCK
   NEW_TRANSACTION
+  RFQ_RECEIVED
+  COUNTER_OFFER
+  NEGOTIATION_ACCEPTED
+  NEGOTIATION_REJECTED
+  PURCHASE_ORDER_CREATED
 }
-
 enum OrderMode {
   WALK_IN
   PICK_UP
@@ -3287,15 +3773,15 @@ enum Role {
 }
 
 enum SalesOrderStatus {
-  ORDERED
-  PROCESSING
-  SHIPPED
-  RECEIVED
-  CANCELLED
   PENDING
+  PROCESSING
   READY_FOR_PICKUP
   OUT_FOR_DELIVERY
   COMPLETED
+  ORDERED
+  SHIPPED
+  RECEIVED
+  CANCELLED
 }
 
 enum ScheduledPriceStatus {
@@ -3312,11 +3798,11 @@ enum SettlementType {
 
 enum Status {
   PENDING
+  COMPLETED
   PAID
   SYNCED
   FAILED
   CANCELED
-  COMPLETED
 }
 
 enum StockMovementType {
@@ -3331,9 +3817,9 @@ enum StockMovementType {
 }
 
 enum SubscriptionPlan {
+  FREE
   BASIC
   GOLD
-  FREE
 }
 
 enum SupplierIncomingStatus {

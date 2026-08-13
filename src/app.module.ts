@@ -8,9 +8,8 @@ import { CartController } from "./controllers/cart.controller";
 import { CatalogController } from "./controllers/catalog.controller";
 import { NotificationController } from "./controllers/notification.controller";
 import { OrderController } from "./controllers/order.controller";
-import { OutletController } from "./controllers/outlet.controller";
-import { SearchController } from "./controllers/search.controller";
 import { WholesaleController } from "./controllers/wholesale.controller";
+import { SupplierController } from "./controllers/supplier.controller";
 import { AgentAuthGuard } from "./guards/agent-auth.guard";
 import { CacheService } from "./common/cache.service";
 import { AddressService } from "./services/address.service";
@@ -23,10 +22,13 @@ import { DatabaseService } from "./services/database.service";
 import { EmailService } from "./services/email.service";
 import { NotificationService } from "./services/notification.service";
 import { OrderService } from "./services/order.service";
-import { OutletService } from "./services/outlet.service";
-import { PrismaService } from "./services/prisma.service";
-import { SearchService } from "./services/search.service";
+import { DashboardService } from "./services/dashboard.service";
+import { RfqService } from "./services/rfq.service";
+import { ConversationService } from "./services/conversation.service";
+import { RfqNegotiationService } from "./services/rfqNegotiation.service";
 import { WholesaleService } from "./services/wholesale.service";
+import { PrismaService } from "./services/prisma.service";
+import { RealtimeGateway } from "./gateway/realtime.gateway";
 
 @Module({
   imports: [
@@ -42,12 +44,11 @@ import { WholesaleService } from "./services/wholesale.service";
     AgentController,
     AuthController,
     CartController,
-    OutletController,
     CatalogController,
     NotificationController,
     OrderController,
-    SearchController,
     WholesaleController,
+    SupplierController,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
@@ -61,12 +62,15 @@ import { WholesaleService } from "./services/wholesale.service";
     DatabaseService,
     EmailService,
     NotificationService,
+    DashboardService,
     OrderService,
-    OutletService,
-    PrismaService,
-    SearchService,
+    RfqService,
+    ConversationService,
+    RfqNegotiationService,
     WholesaleService,
+    PrismaService,
+    RealtimeGateway,
     AgentAuthGuard,
   ],
 })
-export class AppModule { }
+export class AppModule {}

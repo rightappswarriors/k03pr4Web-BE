@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, BadRequestException } from "@nestjs/common";
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from "@nestjs/common";
 import { AuthService } from "../services/auth.service";
 
 @Injectable()
@@ -10,24 +10,24 @@ export class AgentAuthGuard implements CanActivate {
     const authorization = request.headers.authorization;
 
     if (!authorization) {
-      throw new BadRequestException("Missing agent authentication token.");
+      throw new UnauthorizedException("Authentication required. Please log in.");
     }
 
     const token = authorization.replace(/^Bearer\s+/i, "");
     const payload = this.authService.verifyAgentAccessToken(token);
 
     if (!payload?.agent_id) {
-      throw new BadRequestException("Invalid or expired agent token.");
+      throw new UnauthorizedException("Invalid or expired agent token.");
     }
 
     const agent = await this.authService.requireAgent(authorization);
 
     if (!agent) {
-      throw new BadRequestException("Agent account not found.");
+      throw new UnauthorizedException("Agent account not found.");
     }
 
     if (agent.verificationStatus !== "APPROVED") {
-      throw new BadRequestException(
+      throw new UnauthorizedException(
         `Your account is ${agent.verificationStatus.toLowerCase()}. Please wait for approval or contact support.`
       );
     }

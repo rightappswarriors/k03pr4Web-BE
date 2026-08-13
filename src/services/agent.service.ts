@@ -8,8 +8,55 @@ import { logDev } from "../lib/logDev";
 // ============================================
 
 // ============================================
-// Types
+// Dashboard Data for Agent
 // ============================================
+
+export type DashboardStats = {
+  pendingQuotations: number;
+  waitingReplies: number;
+  processingOrders: number;
+  unreadMessages: number;
+  notifications: number;
+};
+
+export type ActivityItem = {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  timestamp: string;
+};
+
+export type RfqItem = {
+  id: string;
+  rfqNumber: string;
+  status: string;
+  supplierCount?: number;
+};
+
+export type TopSupplier = {
+  id: string;
+  name: string;
+  rating: number;
+  city: string;
+  status: string;
+};
+
+export type DashboardResponse = {
+  statistics: DashboardStats;
+  recentActivity: ActivityItem[];
+  rfqs: RfqItem[];
+  topSuppliers: TopSupplier[];
+};
+
+export type AgentDashboardDto = {
+  agentId: string;
+  agentName: string;
+  statistics: DashboardStats;
+  recentActivity: ActivityItem[];
+  rfqs: RfqItem[];
+  topSuppliers: TopSupplier[];
+};
 export type ProcurementAgentType = "INDEPENDENT" | "ORGANIZATION";
 export type ExperienceLevel = "BEGINNER" | "INTERMEDIATE" | "PROFESSIONAL";
 
@@ -511,7 +558,6 @@ export class AgentService {
       await tx.organizationMembership.create({
         data: {
           id: `oms_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          userId: 0, // Placeholder - org membership for agent, no user yet
           agentId: agent.id,
           orgId: invitation.orgId,
           positionId: invitation.positionId,
@@ -522,12 +568,14 @@ export class AgentService {
         },
       });
 
-      // Update Agent status to ACTIVE and set organizationId
+      // Update Agent to ACTIVE, set verificationStatus to APPROVED
+      // (the AgentAuthGuard checks verificationStatus, not status)
       logDev("Updating Agent to ACTIVE", { agentId });
       await tx.agent.update({
         where: { id: agent.id },
         data: {
           status: "ACTIVE" as any,
+          verificationStatus: "APPROVED" as any,
           organizationId: invitation.orgId,
           updatedAt: new Date(),
         },
@@ -614,4 +662,10 @@ export class AgentService {
       };
     });
   }
+
+  // ============================================
+  // Agent Dashboard
+  // ============================================
+  // Dashboard logic has been moved to DashboardService.
+  // See: src/services/dashboard.service.ts
 }

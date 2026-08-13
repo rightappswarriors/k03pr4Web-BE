@@ -3,10 +3,10 @@ import { WholesaleService } from "../services/wholesale.service";
 import { AgentAuthGuard } from "../guards/agent-auth.guard";
 
 @Controller("wholesale")
-@UseGuards(AgentAuthGuard)
 export class WholesaleController {
   constructor(private readonly wholesale: WholesaleService) { }
 
+  // Public marketplace endpoints — no agent auth required
   @Get("products")
   products(@Query() query: Record<string, string>) {
     return this.wholesale.products(query);
@@ -36,17 +36,6 @@ export class WholesaleController {
     return this.wholesale.product(id);
   }
 
-  @Post("rfq")
-  submitRfq(@Body() data: {
-    productId: string;
-    quantity: string;
-    targetPrice?: string;
-    requirements?: string;
-    deliveryDate?: string;
-    contactMethod: "email" | "phone" | "chat";
-  }) {
-    return this.wholesale.submitRfq(data);
-  }
   @Get("search/popular")
   popularSearches() {
     return this.wholesale.popularSearches();
@@ -72,7 +61,7 @@ export class WholesaleController {
   }
 
   // =====================
-  // Wholesale Cart/Order Endpoints
+  // Public pricing endpoints
   // =====================
 
   @Get("supplier-items/:id/pricing")
@@ -88,7 +77,25 @@ export class WholesaleController {
     return this.wholesale.priceQuote(id, body);
   }
 
+  // =====================
+  // Auth-required endpoints (agent must be logged in)
+  // =====================
+
+  @Post("rfq")
+  @UseGuards(AgentAuthGuard)
+  submitRfq(@Body() data: {
+    productId: string;
+    quantity: string;
+    targetPrice?: string;
+    requirements?: string;
+    deliveryDate?: string;
+    contactMethod: "email" | "phone" | "chat";
+  }) {
+    return this.wholesale.submitRfq(data);
+  }
+
   @Post("cart/add")
+  @UseGuards(AgentAuthGuard)
   addToCart(
     @Headers("authorization") authorization: string | undefined,
     @Body() body: { supplierItemId: string; variantId?: string; quantity: number }
@@ -97,6 +104,7 @@ export class WholesaleController {
   }
 
   @Post("orders/start")
+  @UseGuards(AgentAuthGuard)
   startOrder(
     @Headers("authorization") authorization: string | undefined,
     @Body() body: { supplierItemId: string; variantId?: string; quantity: number }

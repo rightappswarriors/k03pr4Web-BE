@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpCode, Patch, Post, UploadedFiles, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Get, Headers, HttpCode, Patch, Post, UploadedFiles, UseInterceptors, BadRequestException } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
 import { CustomerAuthService } from "../services/customer-auth.service";
@@ -28,19 +28,84 @@ export class AuthController {
   @Post("agent/login")
   @HttpCode(200)
   @Throttle({ default: { limit: 8, ttl: 60_000 } })
-  agentLogin(@Body() body: unknown) {
+  async agentLogin(@Body() body: unknown) {
     const { email, password } = body as { email?: string; password?: string };
     if (!email || !password) {
       return { success: false, error: "Email and password are required." };
     }
     if (process.env.NODE_ENV === "development") {
-      console.log("[agent/login] test response ✅");
+      console.log("[agent/login] attempting agent login", { email });
     }
-    const result = this.authService.authenticateAgent(email, password);
+    const result = await this.authService.authenticateAgent(email, password);
     if (!result) {
       return { success: false, error: "Invalid email or password." };
     }
-    return result;
+    return {
+      success: true,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      expiresIn: this.authService.AGENT_ACCESS_TOKEN_EXPIRES_IN,
+      agent: result.agent,
+    };
+  }
+
+  @Post("agent/refresh")
+  @HttpCode(200)
+  async agentRefresh(@Body() body: unknown) {
+    const { refreshToken } = body as { refreshToken?: string };
+    if (!refreshToken) {
+      throw new BadRequestException("Refresh token is required.");
+    }
+
+    const result = await this.authService.refreshAgentAccessToken(refreshToken);
+    return {
+      success: true,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      expiresIn: result.expiresIn,
+    };
+  }
+
+  @Post("agent/logout")
+  @HttpCode(200)
+  async agentLogout(@Body() body: unknown) {
+    const { refreshToken } = body as { refreshToken?: string };
+
+    // Best-effort server-side revocation of the refresh token.
+    if (refreshToken) {
+      await this.authService.revokeRefreshToken(refreshToken);
+    }
+
+    return {
+      success: true,
+      message: "Logged out successfully.",
+    };
+  }
+
+  @Post("supplier/login")
+  @HttpCode(200)
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  async supplierLogin(@Body() body: unknown) {
+    const { email, password } = body as { email?: string; password?: string };
+    if (!email || !password) {
+      return { success: false, error: "Email and password are required." };
+    }
+    if (process.env.NODE_ENV === "development") {
+      console.log("[supplier/login] Login attempt", { email });
+    }
+    const result = await this.authService.authenticateSupplier(email, password);
+    if (!result) {
+      return { success: false, error: "Invalid email or password." };
+    }
+    return {
+      success: true,
+      data: {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        supplier: result.supplier,
+      },
+      message: "Supplier login successful",
+    };
   }
 
   @Post("verify-email")

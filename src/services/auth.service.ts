@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { Injectable, BadRequestException, } from "@nestjs/common";
+=======
+import { Injectable, BadRequestException, UnauthorizedException } from "@nestjs/common";
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 import * as crypto from "node:crypto";
 import * as jwt from "jsonwebtoken";
 import { DatabaseService } from "./database.service";
@@ -31,6 +35,13 @@ export class AuthService {
   private readonly jwtSecret =
     process.env.JWT_SECRET || process.env.SECRET_KEY || "kompra-local-dev-key";
 
+<<<<<<< HEAD
+=======
+  /** Access token lifetime: 15 minutes (in seconds) */
+  readonly AGENT_ACCESS_TOKEN_EXPIRES_IN = 15 * 60; // 900
+  readonly AGENT_REFRESH_TOKEN_EXPIRES_IN = 7 * 24 * 60 * 60; // 604800
+
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   constructor(
     private readonly db: DatabaseService,
     private readonly prisma: PrismaService
@@ -242,12 +253,22 @@ export class AuthService {
     const access = jwt.sign(
       { agent_id: agent.agentId, organization_id: agent.organizationId, verification_status: agent.verificationStatus, agent_type: agent.agentType, email: agent.email, token_type: "access" },
       this.jwtSecret,
+<<<<<<< HEAD
       { expiresIn: "1d" }
     );
     const refresh = jwt.sign(
       { agent_id: agent.agentId, email: agent.email, token_type: "refresh" },
       this.jwtSecret,
       { expiresIn: "7d" }
+=======
+      { expiresIn: this.AGENT_ACCESS_TOKEN_EXPIRES_IN }
+    );
+    // Include a jti (JWT ID) so the refresh token can be revoked server-side.
+    const refresh = jwt.sign(
+      { agent_id: agent.agentId, email: agent.email, token_type: "refresh" },
+      this.jwtSecret,
+      { expiresIn: this.AGENT_REFRESH_TOKEN_EXPIRES_IN, jwtid: `rt_${agent.agentId}_${Date.now()}` }
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
     );
     return { access, refresh };
   }
@@ -270,6 +291,104 @@ export class AuthService {
     }
   }
 
+<<<<<<< HEAD
+=======
+  verifyAgentRefreshToken(token?: string) {
+    if (!token) return null;
+    try {
+      const payload = jwt.verify(token, this.jwtSecret) as {
+        agent_id?: string;
+        token_type?: string;
+        email?: string;
+        jti?: string;
+        exp?: number;
+        iat?: number;
+      };
+      if (payload.token_type !== "refresh" || !payload.agent_id) return null;
+      return payload;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Verifies the agent refresh token and issues a new access token.
+   * Throws UnauthorizedException if the refresh token is invalid, revoked,
+   * or the agent no longer exists / is not approved.
+   */
+  async refreshAgentAccessToken(refreshToken: string) {
+    const payload = this.verifyAgentRefreshToken(refreshToken);
+    if (!payload?.agent_id) {
+      throw new UnauthorizedException("Invalid or expired refresh token.");
+    }
+
+    // Check if the refresh token has been revoked (e.g. user logged out)
+    if (payload.jti && (await this.isRefreshTokenRevoked(payload.jti))) {
+      throw new UnauthorizedException("Refresh token has been revoked.");
+    }
+
+    // Verify the agent still exists and is still approved
+    const agent = await this.findAgentById(payload.agent_id);
+
+    if (!agent) {
+      throw new UnauthorizedException("Agent account not found.");
+    }
+
+    if (agent.verificationStatus !== "APPROVED") {
+      throw new UnauthorizedException(
+        `Your account is ${agent.verificationStatus.toLowerCase()}. Please wait for approval or contact support.`
+      );
+    }
+
+    const tokens = this.createAgentTokens({
+      agentId: agent.id,
+      organizationId: agent.organizationId,
+      verificationStatus: agent.verificationStatus,
+      agentType: agent.agentType,
+      email: agent.email,
+    });
+
+    return {
+      accessToken: tokens.access,
+      refreshToken: tokens.refresh,
+      expiresIn: this.AGENT_ACCESS_TOKEN_EXPIRES_IN,
+    };
+  }
+
+  /**
+   * Checks whether a refresh token (by its jti) has been revoked.
+   */
+  async isRefreshTokenRevoked(tokenId: string): Promise<boolean> {
+    const revoked = await this.prisma.revokedRefreshToken.findUnique({
+      where: { tokenId },
+      select: { id: true },
+    });
+    return !!revoked;
+  }
+
+  /**
+   * Revokes a refresh token by storing it in the revoked-token table.
+   * The token remains valid until its natural expiry, but is blocked
+   * from producing new access tokens.
+   */
+  async revokeRefreshToken(refreshToken: string): Promise<void> {
+    const payload = this.verifyAgentRefreshToken(refreshToken);
+    if (!payload?.agent_id || !payload.jti) return;
+
+    // Compute the refresh token's expiry from the JWT payload.
+    const exp = payload.exp as number | undefined;
+    const expiresAt = exp ? new Date(exp * 1000) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await this.prisma.revokedRefreshToken.create({
+      data: {
+        agentId: payload.agent_id,
+        tokenId: payload.jti,
+        expiresAt,
+      },
+    });
+  }
+
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   async findAgentByEmail(email: string) {/**
     const result = await this.db.query<any>(
       `
@@ -284,7 +403,12 @@ export class AuthService {
 
     const result = await this.prisma.agent.findUnique({
       where: {
+<<<<<<< HEAD
         email
+=======
+        email,
+        deletedAt: null,
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
       }, select: {
         email: true,
         fullname: true,
@@ -296,17 +420,44 @@ export class AuthService {
         id: true
       }
     })
+<<<<<<< HEAD
     if (process.env.NODE_ENV) {
       console.log("[agent query result] agent:", result)
     }
     return result || null
   }
 
+=======
+    return result || null
+  }
+
+  async findAgentById(agentId: string) {
+    const result = await this.prisma.agent.findUnique({
+      where: { id: agentId, deletedAt: null },
+      select: {
+        id: true,
+        email: true,
+        fullname: true,
+        phone: true,
+        passwordHash: true,
+        organizationId: true,
+        verificationStatus: true,
+        agentType: true,
+      },
+    });
+    return result || null;
+  }
+
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   async requireAgent(authorization?: string) {
     const token = authorization?.replace(/^Bearer\s+/i, "");
     const payload = this.verifyAgentAccessToken(token);
     if (!payload?.agent_id) return null;
+<<<<<<< HEAD
     const agent = await this.findAgentByEmail(payload.email || "");
+=======
+    const agent = await this.findAgentById(payload.agent_id);
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
     return agent || null;
   }
 
@@ -358,4 +509,132 @@ export class AuthService {
       },
     };
   }
+<<<<<<< HEAD
+=======
+
+  // ============================================
+  // Supplier (Organization) Authentication
+  // ============================================
+
+  createSupplierTokens(org: { orgId: number; email: string }) {
+    const access = jwt.sign(
+      { org_id: org.orgId, email: org.email, token_type: "access" },
+      this.jwtSecret,
+      { expiresIn: "1d" }
+    );
+    const refresh = jwt.sign(
+      { org_id: org.orgId, email: org.email, token_type: "refresh" },
+      this.jwtSecret,
+      { expiresIn: "7d" }
+    );
+    return { access, refresh };
+  }
+
+  verifySupplierAccessToken(token?: string) {
+    if (!token) return null;
+    try {
+      const payload = jwt.verify(token, this.jwtSecret) as {
+        org_id?: number;
+        token_type?: string;
+        email?: string;
+      };
+      if (payload.token_type !== "access" || !payload.org_id) return null;
+      return payload;
+    } catch {
+      return null;
+    }
+  }
+
+  async findSupplierOrgByEmail(email: string) {
+    const result = await this.prisma.organization.findFirst({
+      where: {
+        email: { equals: email, mode: "insensitive" },
+        deletedAt: null,
+        SupplierCatalog: { isNot: undefined },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        passwordHash: true,
+        SupplierCatalog: {
+          select: { id: true, organizationId: true },
+        },
+        verificationStatus: true,
+      },
+    });
+    return result || null;
+  }
+
+  async requireSupplier(authorization?: string) {
+    const token = authorization?.replace(/^Bearer\s+/i, "");
+    const payload = this.verifySupplierAccessToken(token);
+    if (!payload?.org_id) return null;
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: payload.org_id, deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        passwordHash: true,
+        verificationStatus: true,
+        SupplierCatalog: {
+          select: { id: true, organizationId: true },
+        },
+      },
+    });
+
+    return org || null;
+  }
+
+  async authenticateSupplier(email: string, password: string) {
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[Supplier Auth] Login attempt`, { email });
+    }
+    const normalizedEmail = this.normalizeEmail(email);
+    const org = await this.findSupplierOrgByEmail(normalizedEmail);
+
+    if (!org) {
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[Supplier Auth] Supplier org not found`, { email });
+      }
+      return null;
+    }
+
+    if (!org.passwordHash) {
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[Supplier Auth] No password set for org`, { orgId: org.id });
+      }
+      return null;
+    }
+
+    const passwordMatch = bcrypt.compareSync(password, org.passwordHash);
+    if (!passwordMatch) {
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[Supplier Auth] Password mismatch`, { orgId: org.id });
+      }
+      return null;
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[Supplier Auth] Login successful`, { orgId: org.id });
+    }
+
+    const tokens = this.createSupplierTokens({
+      orgId: org.id,
+      email: org.email || "",
+    });
+
+    return {
+      accessToken: tokens.access,
+      refreshToken: tokens.refresh,
+      supplier: {
+        orgId: org.id,
+        name: org.name,
+        email: org.email,
+      },
+    };
+  }
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 }

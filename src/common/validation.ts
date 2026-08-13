@@ -24,6 +24,7 @@ export function parsePositiveId(value: string | number, label = "id") {
   }
   return id;
 }
+<<<<<<< HEAD
 
 export function parseRequiredFloat(value: string | undefined, label: string) {
   const num = Number(value);
@@ -32,3 +33,5 @@ export function parseRequiredFloat(value: string | undefined, label: string) {
   }
   return num;
 }
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)

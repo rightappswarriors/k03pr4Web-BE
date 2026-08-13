@@ -8,8 +8,60 @@ import { logDev } from "../lib/logDev";
 // ============================================
 
 // ============================================
+<<<<<<< HEAD
 // Types
 // ============================================
+=======
+// Dashboard Data for Agent
+// ============================================
+
+export type DashboardStats = {
+  pendingQuotations: number;
+  waitingReplies: number;
+  processingOrders: number;
+  unreadMessages: number;
+  notifications: number;
+};
+
+export type ActivityItem = {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  timestamp: string;
+};
+
+export type RfqItem = {
+  id: string;
+  rfqNumber: string;
+  status: string;
+  supplierCount?: number;
+};
+
+export type TopSupplier = {
+  id: string;
+  name: string;
+  rating: number;
+  city: string;
+  status: string;
+};
+
+export type DashboardResponse = {
+  statistics: DashboardStats;
+  recentActivity: ActivityItem[];
+  rfqs: RfqItem[];
+  topSuppliers: TopSupplier[];
+};
+
+export type AgentDashboardDto = {
+  agentId: string;
+  agentName: string;
+  statistics: DashboardStats;
+  recentActivity: ActivityItem[];
+  rfqs: RfqItem[];
+  topSuppliers: TopSupplier[];
+};
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 export type ProcurementAgentType = "INDEPENDENT" | "ORGANIZATION";
 export type ExperienceLevel = "BEGINNER" | "INTERMEDIATE" | "PROFESSIONAL";
 
@@ -511,7 +563,10 @@ export class AgentService {
       await tx.organizationMembership.create({
         data: {
           id: `oms_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+<<<<<<< HEAD
           userId: 0, // Placeholder - org membership for agent, no user yet
+=======
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
           agentId: agent.id,
           orgId: invitation.orgId,
           positionId: invitation.positionId,
@@ -522,12 +577,21 @@ export class AgentService {
         },
       });
 
+<<<<<<< HEAD
       // Update Agent status to ACTIVE and set organizationId
+=======
+      // Update Agent to ACTIVE, set verificationStatus to APPROVED
+      // (the AgentAuthGuard checks verificationStatus, not status)
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
       logDev("Updating Agent to ACTIVE", { agentId });
       await tx.agent.update({
         where: { id: agent.id },
         data: {
           status: "ACTIVE" as any,
+<<<<<<< HEAD
+=======
+          verificationStatus: "APPROVED" as any,
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
           organizationId: invitation.orgId,
           updatedAt: new Date(),
         },
@@ -614,4 +678,13 @@ export class AgentService {
       };
     });
   }
+<<<<<<< HEAD
+=======
+
+  // ============================================
+  // Agent Dashboard
+  // ============================================
+  // Dashboard logic has been moved to DashboardService.
+  // See: src/services/dashboard.service.ts
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 }

@@ -1,9 +1,17 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { DatabaseService } from "./database.service";
+<<<<<<< HEAD
 
 @Injectable()
 export class NotificationService {
   constructor(private readonly db: DatabaseService) {}
+=======
+import { RealtimeGateway } from "../gateway/realtime.gateway";
+
+@Injectable()
+export class NotificationService {
+  constructor(private readonly db: DatabaseService, private readonly realtime: RealtimeGateway) {}
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 
   async notifications(orgId: number) {
     if (!orgId) throw new BadRequestException({ error: "orgId is required" });
@@ -19,6 +27,10 @@ export class NotificationService {
   async markAllRead(orgId: number) {
     if (!orgId) throw new BadRequestException({ error: "orgId is required" });
     await this.db.query(`UPDATE "Notification" SET "isRead"=true WHERE "orgId"=$1 AND "isRead"=false`, [orgId]);
+<<<<<<< HEAD
+=======
+    this.realtime.emitToOrganization(orgId, "notification:read", { organizationId: orgId, all: true });
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
     return { message: "All notifications marked as read" };
   }
 

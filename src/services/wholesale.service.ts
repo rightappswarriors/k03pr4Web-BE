@@ -16,7 +16,11 @@ export class WholesaleService {
       select: {
         id: true,
         organizationId: true,
+<<<<<<< HEAD
         Organization: { select: { id: true, name: true, verificationStatus: true } },
+=======
+        Organization: { select: { id: true, name: true, verificationStatus: true, location: true } },
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
       },
     },
   };
@@ -643,15 +647,27 @@ export class WholesaleService {
       images: item.image ? [item.image] : [],
       price: item.unitPrice,
       unit: item.unit,
+<<<<<<< HEAD
+=======
+      sku: item.sku,
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
       moq: `${item.moq}`,
       sampleAvailable: item.sampleAvailable,
       samplePrice: item.samplePrice,
       leadTime: item.leadTime,
       shippingFrom: item.shippingFrom,
+<<<<<<< HEAD
+=======
+      availableQty: item.availableQty,
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
       verified: item.isActive,
       category: item.SupplierItemCategory?.name,
       supplier: item.SupplierCatalog?.Organization?.name,
       supplierVerified: item.SupplierCatalog?.Organization?.verificationStatus === "VERIFIED",
+<<<<<<< HEAD
+=======
+      supplierLocation: item.SupplierCatalog?.Organization?.location,
+>>>>>>> 60f5dc1 (chat system merging with prasmo's work)
     };
   }
 }

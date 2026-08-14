@@ -1022,8 +1022,8 @@ model Organization {
   RequestForQuotation                                                           RequestForQuotation[]
   ConversationParticipant                                                       ConversationParticipant[]
   ConversationMessage                                                           ConversationMessage[]
-  NegotiationOffer                                                            NegotiationOffer[]
-  RfqOffer                                                                    RfqOffer[]
+  NegotiationOffer                                                              NegotiationOffer[]
+  RfqOffer                                                                      RfqOffer[]
 }
 
 model OrganizationReview {
@@ -1350,16 +1350,16 @@ model PurchaseOrder {
   Organization_PurchaseOrder_buyerOrgIdToOrganization    Organization              @relation("PurchaseOrder_buyerOrgIdToOrganization", fields: [buyerOrgId], references: [id])
   Outlet                                                 Outlet                    @relation(fields: [deliveryOutletId], references: [id])
   Organization_PurchaseOrder_supplierOrgIdToOrganization Organization              @relation("PurchaseOrder_supplierOrgIdToOrganization", fields: [supplierOrgId], references: [id])
-   SupplierOrganizationLink                               SupplierOrganizationLink? @relation(fields: [supplierOrganizationLinkId], references: [id])
-   PurchaseOrderRFQ                                       PurchaseOrderRFQ[]
+  SupplierOrganizationLink                               SupplierOrganizationLink? @relation(fields: [supplierOrganizationLinkId], references: [id])
+  PurchaseOrderRFQ                                       PurchaseOrderRFQ[]
 }
 
 model PurchaseOrderRFQ {
-  id        String               @id @default(cuid())
-  poId      String
-  rfqId     String
-  po        PurchaseOrder        @relation(fields: [poId], references: [id])
-  rfq       RequestForQuotation  @relation(fields: [rfqId], references: [id])
+  id    String              @id @default(cuid())
+  poId  String
+  rfqId String
+  po    PurchaseOrder       @relation(fields: [poId], references: [id])
+  rfq   RequestForQuotation @relation(fields: [rfqId], references: [id])
 
   @@unique([poId, rfqId])
 }
@@ -2009,14 +2009,14 @@ enum NegotiationOfferStatus {
 }
 
 model RequestForQuotation {
-  id                   String           @id
-  rfqNumber            String           @unique
+  id                   String             @id
+  rfqNumber            String             @unique
   agentId              String
   supplierOrgId        Int?
   supplierOrgName      String?
   supplierItemId       String?
-  status               RfqStatus        @default(DRAFT)
-  conversationId       String?           @unique
+  status               RfqStatus          @default(DRAFT)
+  conversationId       String?            @unique
   targetUnitPrice      Float?
   quantity             String?
   expectedDeliveryDate DateTime?
@@ -2025,37 +2025,37 @@ model RequestForQuotation {
   acceptedPrice        Float?
   acceptedQuantity     Float?
   acceptedDeliveryDate DateTime?
-   agentAcceptedAt      DateTime?
-   supplierAcceptedAt   DateTime?
-   supplierConfirmedAt  DateTime?
-   createdAt            DateTime         @default(now())
-   updatedAt            DateTime         @updatedAt
-   deletedAt            DateTime?
-   Agent                Agent?           @relation(fields: [agentId], references: [id])
-   Organization         Organization?    @relation(fields: [supplierOrgId], references: [id])
-   SupplierItem         SupplierItem?    @relation(fields: [supplierItemId], references: [id])
-   Conversation         Conversation?    @relation(fields: [conversationId], references: [id])
-   RfqOffer             RfqOffer[]
-   PurchaseOrderRFQ     PurchaseOrderRFQ[]
+  agentAcceptedAt      DateTime?
+  supplierAcceptedAt   DateTime?
+  supplierConfirmedAt  DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  deletedAt            DateTime?
+  Agent                Agent?             @relation(fields: [agentId], references: [id])
+  Organization         Organization?      @relation(fields: [supplierOrgId], references: [id])
+  SupplierItem         SupplierItem?      @relation(fields: [supplierItemId], references: [id])
+  Conversation         Conversation?      @relation(fields: [conversationId], references: [id])
+  RfqOffer             RfqOffer[]
+  PurchaseOrderRFQ     PurchaseOrderRFQ[]
 
-   @@index([agentId, status])
-   @@index([supplierOrgId, status])
-   @@index([supplierItemId])
-   @@index([status])
+  @@index([agentId, status])
+  @@index([supplierOrgId, status])
+  @@index([supplierItemId])
+  @@index([status])
   @@index([createdAt])
 }
 
 model Conversation {
-  id                     String                    @id @default(cuid())
-  rfqId                  String?                   @unique
-  type                   ConversationType          @default(RFQ)
-  createdAt              DateTime                  @default(now())
-  updatedAt              DateTime                  @updatedAt
-  deletedAt              DateTime?
-  RequestForQuotation    RequestForQuotation?
+  id                      String                    @id @default(cuid())
+  rfqId                   String?                   @unique
+  type                    ConversationType          @default(RFQ)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  deletedAt               DateTime?
+  RequestForQuotation     RequestForQuotation?
   ConversationParticipant ConversationParticipant[]
-  ConversationMessage    ConversationMessage[]
-  NegotiationOffer       NegotiationOffer[]
+  ConversationMessage     ConversationMessage[]
+  NegotiationOffer        NegotiationOffer[]
 
   @@index([rfqId])
 }
@@ -2066,16 +2066,16 @@ enum ConversationType {
 }
 
 model ConversationParticipant {
-  id              String             @id @default(cuid())
-  conversationId  String
-  agentId         String?
-  organizationId  Int?
-  role            ConversationRole   @default(AGENT)
-  joinedAt        DateTime           @default(now())
-  lastReadAt      DateTime?
-  Conversation    Conversation       @relation(fields: [conversationId], references: [id])
-  Agent           Agent?             @relation(fields: [agentId], references: [id])
-  Organization    Organization?      @relation(fields: [organizationId], references: [id])
+  id             String           @id @default(cuid())
+  conversationId String
+  agentId        String?
+  organizationId Int?
+  role           ConversationRole @default(AGENT)
+  joinedAt       DateTime         @default(now())
+  lastReadAt     DateTime?
+  Conversation   Conversation     @relation(fields: [conversationId], references: [id])
+  Agent          Agent?           @relation(fields: [agentId], references: [id])
+  Organization   Organization?    @relation(fields: [organizationId], references: [id])
 
   @@index([conversationId])
   @@index([agentId])
@@ -2099,9 +2099,9 @@ model ConversationMessage {
   attachments     String[]      @default([])
   deliveredAt     DateTime?
   seenAt          DateTime?
-   clientMessageId String?
-   metadata        Json?
-   Conversation    Conversation  @relation(fields: [conversationId], references: [id])
+  clientMessageId String?
+  metadata        Json?
+  Conversation    Conversation  @relation(fields: [conversationId], references: [id])
   Agent           Agent?        @relation(fields: [senderAgentId], references: [id])
   Organization    Organization? @relation(fields: [senderOrgId], references: [id])
 
@@ -2113,32 +2113,32 @@ model ConversationMessage {
 }
 
 model NegotiationOffer {
-  id                  String                  @id @default(cuid())
-  conversationId      String
-  senderType          ConversationRole
-  senderAgentId       String?
-  senderOrgId         Int?
-  quantity            Float
-  unitPrice           Float
-  deliveryDate        DateTime?
+  id                   String                 @id @default(cuid())
+  conversationId       String
+  senderType           ConversationRole
+  senderAgentId        String?
+  senderOrgId          Int?
+  quantity             Float
+  unitPrice            Float
+  deliveryDate         DateTime?
   minimumOrderQuantity Int?
   estimatedLeadTime    String?
   validUntil           DateTime?
-  notes               String?
-    status              NegotiationOfferStatus  @default(PENDING)
-    negotiationStatus   NegotiationStatus?      @default(PENDING)
-    createdAt           DateTime                @default(now())
-  updatedAt           DateTime                @updatedAt
-  Conversation        Conversation            @relation(fields: [conversationId], references: [id])
-  Agent               Agent?                  @relation(fields: [senderAgentId], references: [id])
-  Organization        Organization?           @relation(fields: [senderOrgId], references: [id])
+  notes                String?
+  status               NegotiationOfferStatus @default(PENDING)
+  negotiationStatus    NegotiationStatus?     @default(PENDING)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  Conversation         Conversation           @relation(fields: [conversationId], references: [id])
+  Agent                Agent?                 @relation(fields: [senderAgentId], references: [id])
+  Organization         Organization?          @relation(fields: [senderOrgId], references: [id])
 
   @@index([conversationId, status])
   @@index([conversationId, createdAt])
 }
 
 model RfqOffer {
-  id                  String          @id
+  id                  String              @id
   rfqId               String
   senderAgentId       String?
   senderSupplierId    Int?
@@ -2149,12 +2149,12 @@ model RfqOffer {
   validUntil          DateTime?
   deliveryDate        DateTime?
   notes               String?
-  status              RfqOfferStatus   @default(PENDING)
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  status              RfqOfferStatus      @default(PENDING)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
   RequestForQuotation RequestForQuotation @relation(fields: [rfqId], references: [id])
-  Agent               Agent?           @relation(fields: [senderAgentId], references: [id])
-  Organization        Organization?    @relation(fields: [senderSupplierId], references: [id])
+  Agent               Agent?              @relation(fields: [senderAgentId], references: [id])
+  Organization        Organization?       @relation(fields: [senderSupplierId], references: [id])
 
   @@index([rfqId, status])
   @@index([rfqId, createdAt])
@@ -3443,6 +3443,7 @@ enum NotificationType {
   NEGOTIATION_REJECTED
   PURCHASE_ORDER_CREATED
 }
+
 enum OrderMode {
   WALK_IN
   PICK_UP

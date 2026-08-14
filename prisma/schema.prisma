@@ -83,10 +83,6 @@ model AgentVerification {
   @@index([agentId, status])
 }
 
-<<<<<<< HEAD
-model Attendance {
-  id              Int              @id @default(autoincrement())
-=======
 model RevokedRefreshToken {
   id        String   @id @default(cuid())
   agentId   String
@@ -102,7 +98,6 @@ model RevokedRefreshToken {
 model Attendance {
   id              Int              @id @default(autoincrement())
   deletedAt       DateTime?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   userId          Int
   shiftId         Int
   shiftDate       DateTime
@@ -120,10 +115,6 @@ model Attendance {
   noteBreakStart  String?
   noteIn          String?
   noteOut         String?
-<<<<<<< HEAD
-  deletedAt       DateTime?
-=======
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization    Organization     @relation(fields: [orgId], references: [id])
   Shift           Shift            @relation(fields: [shiftId], references: [id])
   User            User             @relation(fields: [userId], references: [id])
@@ -158,17 +149,10 @@ model Branch {
   phone           String?
   isActive        Boolean           @default(true)
   createdAt       DateTime          @default(now())
-<<<<<<< HEAD
-  orgId           Int
-  ownerId         Int
-  locationId      Int?
-  deletedAt       DateTime?
-=======
   deletedAt       DateTime?
   orgId           Int
   ownerId         Int
   locationId      Int?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization    Organization      @relation(fields: [orgId], references: [id])
   User            User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   Contact         Contact[]
@@ -183,19 +167,12 @@ model Branch {
 
 model Brand {
   id            Int          @id @default(autoincrement())
-<<<<<<< HEAD
-=======
   deletedAt     DateTime?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   email         String?
   webUrl        String?
   contactNumber String?
   name          String       @unique
   orgId         Int
-<<<<<<< HEAD
-  deletedAt     DateTime?
-=======
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization  Organization @relation(fields: [orgId], references: [id])
   Item          Item[]
 
@@ -230,15 +207,9 @@ model CartItem {
   discountQuantity  Float?             @default(0)
   discountRate      Float?             @default(0)
   discountType      DiscountType       @default(NONE)
-<<<<<<< HEAD
-  finalPrice        Float              @default(0)
-  originalPrice     Float              @default(0)
-  vatExclusivePrice Float              @default(0)
-=======
   originalPrice     Float              @default(0)
   vatExclusivePrice Float              @default(0)
   finalPrice        Float              @default(0)
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   costSnapshot      Float?
   priceSnapshot     Float?
   Item              Item               @relation(fields: [itemId], references: [id])
@@ -250,15 +221,9 @@ model CartItem {
 
 model Center {
   id           Int          @id @default(autoincrement())
-<<<<<<< HEAD
-  label        String
-  orgId        Int
-  deletedAt    DateTime?
-=======
   deletedAt    DateTime?
   label        String
   orgId        Int
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization Organization @relation(fields: [orgId], references: [id])
   GISRow       GISRow[]
   SummaryRow   SummaryRow[]
@@ -268,15 +233,9 @@ model Center {
 
 model Color {
   id        Int       @id @default(autoincrement())
-<<<<<<< HEAD
-  name      String    @unique
-  hexCode   String?
-  deletedAt DateTime?
-=======
   deletedAt DateTime?
   name      String    @unique
   hexCode   String?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Item      Item[]    @relation("ColorToItem")
 }
 
@@ -304,17 +263,10 @@ model Contact {
 
 model CostLines {
   id        Int       @id @default(autoincrement())
-<<<<<<< HEAD
-  itemId    Int
-  label     String
-  amount    Float
-  deletedAt DateTime?
-=======
   deletedAt DateTime?
   itemId    Int
   label     String
   amount    Float
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Item      Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([itemId])
@@ -333,10 +285,7 @@ model Courier {
 
 model CustomerDetails {
   id              Int         @id @default(autoincrement())
-<<<<<<< HEAD
-=======
   deletedAt       DateTime?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   fullname        String?
   username        String?
   email           String?
@@ -347,10 +296,6 @@ model CustomerDetails {
   client_key      String?
   status          String?
   transactionId   Int         @unique
-<<<<<<< HEAD
-  deletedAt       DateTime?
-=======
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Transaction     Transaction @relation(fields: [transactionId], references: [id])
 }
 
@@ -394,17 +339,10 @@ model DeliveryAddress {
 
 model Department {
   id           Int          @id @default(autoincrement())
-<<<<<<< HEAD
-  label        String
-  color        String?
-  orgId        Int
-  deletedAt    DateTime?
-=======
   deletedAt    DateTime?
   label        String
   color        String?
   orgId        Int
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization Organization @relation(fields: [orgId], references: [id])
   User         User[]
 
@@ -416,34 +354,20 @@ model DiscountAudit {
   orgId                  Int
   userId                 Int
   customerId             String?
-<<<<<<< HEAD
-  itemId                 Int?
-  transactionId          Int?
-  salesOrderId           String?
-=======
   oscaGovId              String?
   itemId                 Int?
   salesOrderId           String?
   transactionId          Int?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   kompraOrderId          Int?
   customItemName         String?
   discountType           DiscountType
   discountAmount         Float
   eligibleAmount         Float?
   runningWeeklyBnpcTotal Float?
-<<<<<<< HEAD
-  createdAt              DateTime     @default(now())
-  isVoided               Boolean      @default(false)
-  oscaGovId              String?
-  voidReason             String?
-  voidedAt               DateTime?
-=======
   isVoided               Boolean      @default(false)
   voidedAt               DateTime?
   voidReason             String?
   createdAt              DateTime     @default(now())
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   deletedAt              DateTime?
   Item                   Item?        @relation(fields: [itemId], references: [id])
   User                   User         @relation(fields: [userId], references: [id])
@@ -460,10 +384,7 @@ model DiscountAudit {
 
 model Employee {
   id           String         @id
-<<<<<<< HEAD
-=======
   deletedAt    DateTime?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   name         String
   role         String
   department   String
@@ -473,10 +394,6 @@ model Employee {
   email        String         @unique
   orgId        Int
   userId       Int?
-<<<<<<< HEAD
-  deletedAt    DateTime?
-=======
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization Organization   @relation(fields: [orgId], references: [id])
   User         User?          @relation(fields: [userId], references: [id])
 
@@ -543,18 +460,11 @@ model GISRow {
   orgId          Int
   userId         Int?
   createdAt      DateTime     @default(now())
-<<<<<<< HEAD
-=======
   deletedAt      DateTime?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   accountTitleId Int
   centerId       Int
   subCenterId    Int
   id             Int          @id @unique @default(autoincrement())
-<<<<<<< HEAD
-  deletedAt      DateTime?
-=======
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   AccountTitle   AccountTitle @relation(fields: [accountTitleId], references: [id])
   Center         Center       @relation(fields: [centerId], references: [id])
   Organization   Organization @relation(fields: [orgId], references: [id])
@@ -567,25 +477,16 @@ model GISRow {
 
 model Inventory {
   id             Int              @id @default(autoincrement())
-<<<<<<< HEAD
-  name           String?
-  outletId       Int              @unique
-  deletedAt      DateTime?
-=======
   deletedAt      DateTime?
   name           String?
   outletId       Int              @unique
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Outlet         Outlet           @relation(fields: [outletId], references: [id], onDelete: Cascade)
   InventoryItems InventoryItems[]
 }
 
 model InventoryItem {
   id           String       @id
-<<<<<<< HEAD
-=======
   deletedAt    DateTime?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   name         String
   sku          String
   stock        Int
@@ -595,10 +496,6 @@ model InventoryItem {
   lowStock     Boolean
   orgId        Int
   userId       Int?
-<<<<<<< HEAD
-  deletedAt    DateTime?
-=======
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization Organization @relation(fields: [orgId], references: [id])
   User         User?        @relation(fields: [userId], references: [id])
 
@@ -607,10 +504,7 @@ model InventoryItem {
 
 model InventoryItemUnit {
   id               Int                @id @default(autoincrement())
-<<<<<<< HEAD
-=======
   deletedAt        DateTime?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   inventoryItemId  Int
   unitName         String
   unitLabel        String
@@ -625,10 +519,6 @@ model InventoryItemUnit {
   maxOrderQty      Float?
   reorderPoint     Float?
   allowDecimal     Boolean            @default(false)
-<<<<<<< HEAD
-  deletedAt        DateTime?
-=======
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   CartItem         CartItem[]
   InventoryItems   InventoryItems     @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
   KompraCOrderItem KompraCOrderItem[]
@@ -639,10 +529,7 @@ model InventoryItemUnit {
 
 model InventoryItems {
   id                    Int                    @id @default(autoincrement())
-<<<<<<< HEAD
-=======
   deletedAt             DateTime?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   inventoryId           Int
   itemId                Int
   price                 Float
@@ -650,10 +537,6 @@ model InventoryItems {
   locationId            Int?                   @unique
   categoryId            Int?
   baseUnit              String                 @default("piece")
-<<<<<<< HEAD
-  deletedAt             DateTime?
-=======
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   InventoryItemUnit     InventoryItemUnit[]
   ItemCategory          ItemCategory?          @relation(fields: [categoryId], references: [id])
   Inventory             Inventory              @relation(fields: [inventoryId], references: [id])
@@ -667,10 +550,7 @@ model InventoryItems {
 
 model Item {
   id                         Int                     @id @default(autoincrement())
-<<<<<<< HEAD
-=======
   deletedAt                  DateTime?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   name                       String                  @unique
   image                      String?
   description                String?
@@ -684,13 +564,10 @@ model Item {
   itemCode                   String?
   skuNumber                  String?
   vatExempt                  Boolean?
-<<<<<<< HEAD
-=======
   isVatExempt                Boolean                 @default(false)
   isBNPC                     Boolean                 @default(false)
   hasSeniorDiscountVATExempt Boolean                 @default(false)
   vatRate                    Float                   @default(0.12)
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   stock                      Float                   @default(0)
   sellingPrice               Float                   @default(0)
   minQuantity                Float                   @default(0)
@@ -705,14 +582,6 @@ model Item {
   vatTypeId                  Int?
   stockDescription           String?
   stockLabel                 String?
-<<<<<<< HEAD
-  isBNPC                     Boolean                 @default(false)
-  isVatExempt                Boolean                 @default(false)
-  vatRate                    Float                   @default(0.12)
-  hasSeniorDiscountVATExempt Boolean                 @default(false)
-  deletedAt                  DateTime?
-=======
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   CartItem                   CartItem[]
   CostLines                  CostLines[]
   DiscountAudit              DiscountAudit[]
@@ -751,13 +620,8 @@ model ItemCategory {
   sales           String?
   stocks          String?
   createdAt       DateTime          @default(now())
-<<<<<<< HEAD
-  icon            String?
-  deletedAt       DateTime?
-=======
   deletedAt       DateTime?
   icon            String?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   InventoryItems  InventoryItems[]
   Item            Item[]
   OrgItemCategory OrgItemCategory[]
@@ -790,13 +654,8 @@ model ItemGroup {
   icon            String?
   isActive        Boolean           @default(true)
   createdAt       DateTime          @default(now())
-<<<<<<< HEAD
-  orgId           Int
-  deletedAt       DateTime?
-=======
   deletedAt       DateTime?
   orgId           Int
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Organization    Organization      @relation(fields: [orgId], references: [id])
   OrgItemCategory OrgItemCategory[]
 
@@ -831,24 +690,15 @@ model ItemPriceHistory {
 
 model ItemUnit {
   id          Int       @id @default(autoincrement())
-<<<<<<< HEAD
-  unitName    String    @unique
-  description String?
-  deletedAt   DateTime?
-=======
   deletedAt   DateTime?
   unitName    String    @unique
   description String?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Item        Item[]    @relation("ItemToItemUnit")
 }
 
 model KompraCDeliveryTracking {
   id           Int                 @id @default(autoincrement())
-<<<<<<< HEAD
-=======
   deletedAt    DateTime?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   orderId      Int
   event        DeliveryStatusEvent
   statusAt     DateTime            @default(now())
@@ -857,10 +707,6 @@ model KompraCDeliveryTracking {
   note         String?
   actorType    String
   actorId      Int?
-<<<<<<< HEAD
-  deletedAt    DateTime?
-=======
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   KompraCOrder KompraCOrder        @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, statusAt])
@@ -885,27 +731,6 @@ model KompraCOrder {
   riderPhone              String?
   customerNote            String?
   outletNote              String?
-<<<<<<< HEAD
-  createdAt               DateTime                  @default(now())
-  updatedAt               DateTime
-  courierId               Int?
-  cancelledAt             DateTime?
-  customerType            CustomerType?             @default(REGULAR)
-  discountAmount          Float?                    @default(0)
-  discountType            DiscountType?             @default(NONE)
-  grandTotal              Float?
-  packedAt                DateTime?
-  placedAt                DateTime?
-  scPwdCustomerId         String?
-  scPwdPax                Int?
-  totalPax                Int?
-  vatAmount               Float?                    @default(0)
-  vatExemptSale           Float?                    @default(0)
-  cancelNote              String?
-  shippedAt               DateTime?
-  deletedAt               DateTime?
-  inventoryDeductedAt     DateTime?
-=======
   cancelNote              String?
   createdAt               DateTime                  @default(now())
   packedAt                DateTime?
@@ -925,7 +750,6 @@ model KompraCOrder {
   discountAmount          Float?                    @default(0)
   vatAmount               Float?                    @default(0)
   grandTotal              Float?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   checkoutGroupId         String?
   KompraCDeliveryTracking KompraCDeliveryTracking[]
   Courier                 Courier?                  @relation(fields: [courierId], references: [id])
@@ -942,27 +766,17 @@ model KompraCOrder {
 
 model KompraCOrderFee {
   id           Int          @id @default(autoincrement())
-<<<<<<< HEAD
-=======
   deletedAt    DateTime?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   orderId      Int
   type         FeeType
   label        String
   amount       Float
-<<<<<<< HEAD
-  deletedAt    DateTime?
-=======
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   KompraCOrder KompraCOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model KompraCOrderItem {
   id                Int                @id @default(autoincrement())
-<<<<<<< HEAD
-=======
   deletedAt         DateTime?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   orderId           Int
   inventoryItemId   Int
   itemId            Int
@@ -970,10 +784,6 @@ model KompraCOrderItem {
   priceSnapshot     Float
   subtotal          Float
   unitId            Int?
-<<<<<<< HEAD
-  deletedAt         DateTime?
-=======
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   costSnapshot      Float?
   InventoryItems    InventoryItems     @relation(fields: [inventoryItemId], references: [id])
   Item              Item               @relation(fields: [itemId], references: [id])
@@ -993,13 +803,8 @@ model KompraCustomer {
   isActive            Boolean               @default(true)
   createdAt           DateTime              @default(now())
   updatedAt           DateTime
-<<<<<<< HEAD
-  phone               String?               @unique
-  deletedAt           DateTime?
-=======
   deletedAt           DateTime?
   phone               String?               @unique
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   CustomerDeviceToken CustomerDeviceToken[]
   DeliveryAddress     DeliveryAddress[]
   KompraCOrder        KompraCOrder[]
@@ -1007,17 +812,10 @@ model KompraCustomer {
 
 model Location {
   id             Int             @id @default(autoincrement())
-<<<<<<< HEAD
-  aisle          String?
-  rack           String?
-  shelf          String?
-  deletedAt      DateTime?
-=======
   deletedAt      DateTime?
   aisle          String?
   rack           String?
   shelf          String?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   InventoryItems InventoryItems?
 }
 
@@ -1090,18 +888,11 @@ model MandateTransaction {
 
 model Media {
   id        Int        @id @default(autoincrement())
-<<<<<<< HEAD
-=======
   deletedAt DateTime?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   url       String
   type      MediaType?
   itemId    Int?
   sortOrder Int        @default(0)
-<<<<<<< HEAD
-  deletedAt DateTime?
-=======
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   Item      Item?      @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([itemId, sortOrder])
@@ -1158,17 +949,12 @@ model OrgItemCategory {
 model Organization {
   id                                                                            Int                            @id @default(autoincrement())
   name                                                                          String
-<<<<<<< HEAD
-  createdAt                                                                     DateTime                       @default(now())
-  bannerImg                                                                     String?
-=======
   roles                                                                         OrgRole[]                      @default([SELLER])
   createdAt                                                                     DateTime                       @default(now())
   updatedAt                                                                     DateTime?
   deletedAt                                                                     DateTime?
   bannerImg                                                                     String?
   profileImg                                                                    String?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   contactNumber                                                                 String?
   email                                                                         String?
   location                                                                      String?
@@ -1177,20 +963,10 @@ model Organization {
   instagramLink                                                                 String?
   twitterLink                                                                   String?
   bio                                                                           String?
-<<<<<<< HEAD
-  deletedAt                                                                     DateTime?
-  updatedAt                                                                     DateTime?
-  profileImg                                                                    String?
-  roles                                                                         OrgRole[]                      @default([SELLER])
-  isDevSeed                                                                     Boolean                        @default(false)
-  verificationExpiresAt                                                         DateTime?
-  verificationStatus                                                            OrgVerificationStatus          @default(UNVERIFIED)
-=======
   isDevSeed                                                                     Boolean                        @default(false)
   verificationExpiresAt                                                         DateTime?
   verificationStatus                                                            OrgVerificationStatus          @default(UNVERIFIED)
   passwordHash                                                                  String?
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
   AccountTitle                                                                  AccountTitle[]
   Agent                                                                         Agent[]
   Attendance                                                                    Attendance[]
@@ -1243,14 +1019,11 @@ model Organization {
   User                                                                          User[]
   VatType                                                                       VatType[]
   Wallet                                                                        Wallet?
-<<<<<<< HEAD
-=======
   RequestForQuotation                                                           RequestForQuotation[]
   ConversationParticipant                                                       ConversationParticipant[]
   ConversationMessage                                                           ConversationMessage[]
   NegotiationOffer                                                            NegotiationOffer[]
   RfqOffer                                                                    RfqOffer[]
->>>>>>> 60f5dc1 (chat system merging with prasmo's work)
 }
 
 model OrganizationReview {

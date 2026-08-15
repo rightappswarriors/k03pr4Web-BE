@@ -11,6 +11,7 @@ import { OrderController } from "./controllers/order.controller";
 import { WholesaleController } from "./controllers/wholesale.controller";
 import { SupplierController } from "./controllers/supplier.controller";
 import { AgentAuthGuard } from "./guards/agent-auth.guard";
+import { SupplierAuthGuard } from "./guards/supplier-auth.guard";
 import { CacheService } from "./common/cache.service";
 import { AddressService } from "./services/address.service";
 import { AgentService } from "./services/agent.service";
@@ -71,6 +72,7 @@ import { RealtimeGateway } from "./gateway/realtime.gateway";
     PrismaService,
     RealtimeGateway,
     AgentAuthGuard,
+    SupplierAuthGuard,
   ],
 })
 export class AppModule {}

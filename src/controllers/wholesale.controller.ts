@@ -31,6 +31,13 @@ export class WholesaleController {
     return this.wholesale.featuredSuppliers();
   }
 
+  // NOTE: products/by-ids MUST come before products/:id so NestJS
+  // does not swallow the literal segment "by-ids" as a route param.
+  @Get("products/by-ids")
+  productsByIds(@Query("ids") ids: string) {
+    return this.wholesale.productsByIds(ids ? ids.split(",") : []);
+  }
+
   @Get("products/:id")
   product(@Param("id") id: string) {
     return this.wholesale.product(id);
@@ -49,11 +56,6 @@ export class WholesaleController {
   @Post("search/track")
   trackSearch(@Body() body: { term: string; userId?: number }) {
     return this.wholesale.trackSearch(body.term, body.userId);
-  }
-
-  @Get("products/by-ids")
-  productsByIds(@Query("ids") ids: string) {
-    return this.wholesale.productsByIds(ids ? ids.split(",") : []);
   }
   @Get("quotes")
   quotes() {

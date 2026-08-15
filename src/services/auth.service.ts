@@ -370,23 +370,16 @@ export class AuthService {
     });
   }
 
-  async findAgentByEmail(email: string) {/**
-    const result = await this.db.query<any>(
-      `
-      SELECT id, email, fullname, phone, "passwordHash", "organizationId", "verificationStatus", "agentType"
-      FROM "Agent"
-      WHERE lower(email) = lower($1) AND "deletedAt" IS NULL
-      LIMIT 1
-      `,
-      [email]
-    );
-    return result.rows[0] || null; */
-
-    const result = await this.prisma.agent.findUnique({
+  async findAgentByEmail(email: string) {
+    // findUnique only accepts unique-index fields (id, email) in `where`.
+    // Adding deletedAt would throw PrismaClientKnownRequestError (P2025/P2023)
+    // in production. Use findFirst which accepts arbitrary scalar filters.
+    const result = await this.prisma.agent.findFirst({
       where: {
         email,
         deletedAt: null,
-      }, select: {
+      },
+      select: {
         email: true,
         fullname: true,
         phone: true,
@@ -394,14 +387,16 @@ export class AuthService {
         organizationId: true,
         verificationStatus: true,
         agentType: true,
-        id: true
-      }
-    })
-    return result || null
+        id: true,
+      },
+    });
+    return result || null;
   }
 
   async findAgentById(agentId: string) {
-    const result = await this.prisma.agent.findUnique({
+    // Same reason as findAgentByEmail: findUnique where only takes unique fields.
+    // deletedAt is not a unique index, so use findFirst.
+    const result = await this.prisma.agent.findFirst({
       where: { id: agentId, deletedAt: null },
       select: {
         id: true,

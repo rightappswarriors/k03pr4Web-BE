@@ -12,6 +12,8 @@ WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# prebuild runs `prisma generate` which writes to src/generated/prisma/
+# tsc then compiles src/ → dist/, so the generated client ends up in dist/generated/
 RUN npm run build
 
 FROM node:24-alpine AS runner
@@ -25,7 +27,6 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-COPY --from=builder /app/src/generated ./src/generated
 
 EXPOSE 8000
 

@@ -4,7 +4,8 @@ FROM node:24-alpine AS deps
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+COPY prisma ./prisma
+RUN npm ci && npx prisma generate
 
 FROM node:24-alpine AS builder
 
@@ -23,7 +24,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package*.json ./
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts

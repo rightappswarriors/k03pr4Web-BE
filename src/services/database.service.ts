@@ -7,14 +7,20 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
-  private readonly pool = new Pool({
-    host: process.env.DB_HOST || "localhost",
-    port: Number(process.env.DB_PORT || 5432),
-    database: process.env.DB_NAME || "kompra_db",
-    user: process.env.DB_USER || "postgres",
-    password: process.env.DB_PASSWORD || "",
-    max: 10,
-  });
+  // Prefer DATABASE_URL (used by Prisma and set in all environments).
+  // Fall back to individual DB_* vars for legacy compatibility.
+  private readonly pool = new Pool(
+    process.env.DATABASE_URL
+      ? { connectionString: process.env.DATABASE_URL, max: 10 }
+      : {
+          host: process.env.DB_HOST || "localhost",
+          port: Number(process.env.DB_PORT || 5432),
+          database: process.env.DB_NAME || "kompra_db",
+          user: process.env.DB_USER || "postgres",
+          password: process.env.DB_PASSWORD || "",
+          max: 10,
+        }
+  );
 
   query<T extends QueryResultRow = QueryResultRow>(
     text: string,

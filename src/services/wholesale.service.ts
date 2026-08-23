@@ -8,7 +8,7 @@ export class WholesaleService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly customers: CustomerAuthService,
-  ) {}
+  ) { }
 
   private readonly productInclude = {
     SupplierItemCategory: { select: { id: true, name: true } },
@@ -24,25 +24,38 @@ export class WholesaleService {
   // ---- Products now sourced from MarketplaceListing, not raw SupplierItem ----
 
   async products(query: Record<string, string | undefined> = {}) {
-    const listings = await this.prisma.marketplaceListing.findMany({
-      where: {
-        status: "PUBLISHED",
-        deletedAt: null,
-        SupplierItem: {
-          deletedAt: null,
-          isActive: true,
-          ...(query.category ? { categoryId: query.category } : {}),
-          ...(query.search?.trim()
-            ? { name: { contains: query.search.trim(), mode: "insensitive" } }
-            : {}),
-        },
-      },
-      include: { SupplierItem: { include: this.productInclude } },
-      orderBy: [{ featured: "desc" }, { searchRank: "desc" }],
-      take: 50,
-    });
+    const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 50); // clamp 1-50, default 20
+    const offset = Math.max(Number(query.offset) || 0, 0);
 
-    return listings.map((l) => this.mapProduct(l.SupplierItem));
+    const where = {
+      status: "PUBLISHED" as const,
+      deletedAt: null,
+      SupplierItem: {
+        deletedAt: null,
+        isActive: true,
+        ...(query.category ? { categoryId: query.category } : {}),
+        ...(query.search?.trim()
+          ? { name: { contains: query.search.trim(), mode: "insensitive" as const } }
+          : {}),
+      },
+    };
+
+    const [listings, total] = await Promise.all([
+      this.prisma.marketplaceListing.findMany({
+        where,
+        include: { SupplierItem: { include: this.productInclude } },
+        orderBy: [{ featured: "desc" }, { searchRank: "desc" }, { id: "asc" }],
+        skip: offset,
+        take: limit,
+      }),
+      this.prisma.marketplaceListing.count({ where }),
+    ]);
+
+    return {
+      data: listings.map((l) => this.mapProduct(l.SupplierItem)),
+      total,
+      hasMore: offset + listings.length < total,
+    };
   }
   async product(id: string) {
     const listing = await this.prisma.marketplaceListing.findUnique({
@@ -205,7 +218,7 @@ export class WholesaleService {
   // Rolling window (vs. all-time) so a stale spike from months ago doesn't stick
   // forever; simple count-in-window rather than a decay curve, since at this
   // volume of data a decay function is overkill and harder to reason about.
-  async frequentlySearchedProducts(limit = 3, days = 30) {
+  async frequentlySearchedProducts(limit = 10, days = 30) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const trending = await this.prisma.searchQuery.groupBy({
       by: ["normalizedTerm"],

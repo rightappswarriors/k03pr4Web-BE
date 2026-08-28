@@ -10,6 +10,7 @@ import { NotificationController } from "./controllers/notification.controller";
 import { OrderController } from "./controllers/order.controller";
 import { WholesaleController } from "./controllers/wholesale.controller";
 import { SupplierController } from "./controllers/supplier.controller";
+import { PaymentController } from './controllers/payment.controller';
 import { AgentAuthGuard } from "./guards/agent-auth.guard";
 import { SupplierAuthGuard } from "./guards/supplier-auth.guard";
 import { CacheService } from "./common/cache.service";
@@ -30,6 +31,11 @@ import { RfqNegotiationService } from "./services/rfqNegotiation.service";
 import { WholesaleService } from "./services/wholesale.service";
 import { PrismaService } from "./services/prisma.service";
 import { RealtimeGateway } from "./gateway/realtime.gateway";
+import { PurchaseOrderPaymentService } from "./services/purchase-order-payment.service";
+import { MayaPaymentProvider } from './services/payments/maya-payment.provider';
+import { PaymentProviderRegistry } from './services/payments/payment-provider.registry';
+import { PaymentConfirmationService } from './services/payments/payment-confirmation.service';
+import { SandboxPaymentReconciliationService } from './services/payments/sandbox-payment-reconciliation.service';
 
 @Module({
   imports: [
@@ -50,6 +56,7 @@ import { RealtimeGateway } from "./gateway/realtime.gateway";
     OrderController,
     WholesaleController,
     SupplierController,
+    PaymentController,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
@@ -68,6 +75,11 @@ import { RealtimeGateway } from "./gateway/realtime.gateway";
     RfqService,
     ConversationService,
     RfqNegotiationService,
+    PurchaseOrderPaymentService,
+    MayaPaymentProvider,
+    PaymentProviderRegistry,
+    PaymentConfirmationService,
+    SandboxPaymentReconciliationService,
     WholesaleService,
     PrismaService,
     RealtimeGateway,

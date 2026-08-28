@@ -1127,8 +1127,9 @@ model Outlet {
   SalesOrder            SalesOrder[]
   SupplierOutletLink    SupplierOutletLink[]
   Transaction           Transaction[]
-  operatingHours String?
-  bio            String?
+  operatingHours        String?
+  bio                   String?
+
   @@unique([orgId, code])
 }
 

@@ -149,6 +149,11 @@ export type PoDetail = {
   id: string;
   poNumber: string;
   status: string;
+  source: "DIRECT_ORDER" | "RFQ";
+  supplierConfirmation: "REVIEW_REQUIRED" | "CONFIRMED" | "DECLINED";
+  supplierConfirmedAt?: Date | null;
+  supplierExpectedDeliveryAt?: Date | null;
+  supplierNote?: string | null;
   paymentStatus: string;
   rejectionReason?: string | null;
   paymentMethod?: string | null;
@@ -1277,7 +1282,7 @@ export class RfqNegotiationService {
         poNumber,
         rfqIds: data.rfqIds,
         deliveryDate: data.deliveryDate,
-        totalAmount,
+        subtotalAmount,
         totalVat,
       };
 

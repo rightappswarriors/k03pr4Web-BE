@@ -1,3 +1,4 @@
+// k03pr4web-be/services/conversation.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -5,6 +6,7 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { PrismaService } from "./prisma.service";
+import { NotificationService } from "./notification.service";
 import { logDevCtx } from "../lib/logDev";
 import { RealtimeGateway } from "../gateway/realtime.gateway";
 
@@ -189,7 +191,11 @@ function computePriceBreakdown(
 
 @Injectable()
 export class ConversationService {
-  constructor(private readonly prisma: PrismaService, private readonly realtime: RealtimeGateway) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+    private readonly notificationService: NotificationService,
+  ) { }
 
   // ============================================
   // List all conversations for an agent
@@ -380,6 +386,7 @@ export class ConversationService {
   async getConversation(
     conversationId: string,
     agentId: string,
+    orgId?: number | null,
   ): Promise<ConversationDetail> {
     logDevCtx("Conversation", "Loading", { conversationId, agentId });
 
@@ -634,6 +641,10 @@ export class ConversationService {
       offers,
       rfqOffers,
     };
+
+    // Mark all notifications for this conversation as read for this agent (best-effort)
+    void this.notificationService.markConversationNotificationsRead(conversationId, agentId, orgId).catch(() => {});
+
     return payload;
   }
 
@@ -701,6 +712,7 @@ export class ConversationService {
           title: "New Message",
           message: `You have a new message regarding RFQ #${rfq.rfqNumber}.`,
           type: "NEW_TRANSACTION",
+          conversationId,
           isRead: false,
         },
       });
@@ -804,6 +816,7 @@ export class ConversationService {
             title: "New Offer",
             message: `A new offer was sent for RFQ #${rfq.rfqNumber}.`,
             type: "NEW_TRANSACTION",
+            conversationId,
           },
         });
       }
@@ -945,6 +958,7 @@ export class ConversationService {
             title: "Buyer accepted your offer",
             message: `Buyer accepted your offer for RFQ #${rfq.rfqNumber}. Waiting for your confirmation.`,
             type: "NEGOTIATION_ACCEPTED",
+            conversationId,
           },
         });
       }
@@ -1082,6 +1096,7 @@ export class ConversationService {
             title: "Offer Rejected",
             message: `Your offer for RFQ #${rfq.rfqNumber} was declined.${data?.reason ? ` Reason: ${data.reason}` : ""}`,
             type: "NEW_TRANSACTION",
+            conversationId,
           },
         });
       }

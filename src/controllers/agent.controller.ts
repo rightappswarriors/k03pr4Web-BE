@@ -3,8 +3,9 @@ import { AgentService, RegisterAgentDto, ApproveAgentDto } from "../services/age
 import { DashboardService } from "../services/dashboard.service";
 import { RfqService, CreateRfqDto, UpdateRfqDto } from "../services/rfq.service";
 import { ConversationService, SendMessageDto, SendOfferDto, AcceptOfferDto, RejectOfferDto } from "../services/conversation.service";
-import { RfqNegotiationService, ConsolidatePoDto } from "../services/rfqNegotiation.service";
+import { RfqNegotiationService, ConsolidatePoDto, PoListItem, PoDetail } from "../services/rfqNegotiation.service";
 import { AgentAuthGuard } from "../guards/agent-auth.guard";
+import { PrismaService } from '../services/prisma.service';
 
 @Controller("agent")
 export class AgentController {
@@ -14,6 +15,7 @@ export class AgentController {
     private readonly rfqService: RfqService,
     private readonly conversationService: ConversationService,
     private readonly negotiationService: RfqNegotiationService,
+    private readonly prisma: PrismaService,
   ) {}
 
   // ============================================
@@ -335,9 +337,11 @@ export class AgentController {
     @Param("conversationId") conversationId: string,
   ) {
     const agentId = req.agent.id;
+    const orgId = req.agent.organizationId;
     const result = await this.conversationService.getConversation(
       conversationId,
       agentId,
+      orgId,
     );
     return {
       success: true,
@@ -454,6 +458,142 @@ export class AgentController {
       conversationId,
       agentId,
     );
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  // ============================================
+  // PO Transaction Workflow Endpoints
+  // ============================================
+
+  /**
+   * List all POs for the authenticated agent
+   * GET /agent/pos
+   */
+  @Get("pos")
+  @UseGuards(AgentAuthGuard)
+  async listPOs(@Req() req: any) {
+    const agentId = req.agent.id;
+    const result = await this.negotiationService.listPOs(agentId);
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  /**
+   * Get a single PO by ID (with conversation & delivery)
+   * GET /agent/pos/:id
+   */
+  @Get("pos/:id")
+  @UseGuards(AgentAuthGuard)
+  async getPO(@Req() req: any, @Param("id") id: string) {
+    const agentId = req.agent.id;
+    const orgId = req.agent.organizationId;
+    const result = await this.negotiationService.getPO(id, agentId, orgId);
+    if (!result) {
+      return {
+        success: false,
+        error: "Purchase Order not found or access denied",
+      };
+    }
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  @Post("pos/:id/accept")
+  @UseGuards(AgentAuthGuard)
+  async acceptPO(@Req() req: any, @Param("id") id: string) {
+    return { success: true, data: await this.negotiationService.acceptPO(id, req.agent.id) };
+  }
+
+  @Post("pos/:id/reject")
+  @UseGuards(AgentAuthGuard)
+  async rejectPO(@Req() req: any, @Param("id") id: string, @Body() data: { reason?: string }) {
+    return { success: true, data: await this.negotiationService.rejectPO(id, req.agent.id, data.reason ?? "") };
+  }
+
+  @Post("pos/:id/payment-preparation")
+  @UseGuards(AgentAuthGuard)
+  async preparePayment(@Req() req: any, @Param("id") id: string, @Body() data: { paymentMethod: "CARD" | "CASH" | "E_WALLET"; paymentReference?: string; delivery: { scheduledDate: string; address: string; latitude?: number | null; longitude?: number | null; notes?: string | null; recipientName?: string | null; recipientContact?: string | null } }) {
+    return { success: true, data: await this.negotiationService.preparePayment(id, req.agent.id, data) };
+  }
+
+  @Post("pos/:id/payments")
+  @UseGuards(AgentAuthGuard)
+  async beginPayment(@Req() req: any, @Param("id") id: string) {
+    if (process.env.NODE_ENV === "development") {
+      console.info("[Payment initiation request]", { agentId: req.agent.id, poId: id });
+    }
+    return { success: true, data: await this.negotiationService.beginPayment(id, req.agent.id) };
+  }
+
+  @Post("payments/:transactionId/reconcile")
+  @UseGuards(AgentAuthGuard)
+  async reconcilePayment(@Req() req: any, @Param("transactionId") transactionId: string) {
+    if (process.env.NODE_ENV === "development") {
+      console.info("[Payment reconciliation request]", { agentId: req.agent.id, transactionId });
+    }
+    return { success: true, data: await this.negotiationService.reconcilePayment(transactionId, req.agent.id) };
+  }
+
+  @Get("payments/:transactionId/status")
+  @UseGuards(AgentAuthGuard)
+  async paymentStatus(@Req() req: any, @Param("transactionId") transactionId: string) {
+    const payment = await this.prisma.paymentTransaction.findFirst({ where: { id: transactionId, payerAgentId: req.agent.id, relatedType: 'PURCHASE_ORDER' } });
+    if (!payment) throw new Error('Payment transaction not found');
+    const po = await this.prisma.purchaseOrder.findUnique({ where: { id: payment.relatedId }, select: { id: true, poNumber: true, paymentStatus: true } });
+    const confirmedAt = (payment.feeSnapshot as Record<string, unknown> | null)?.confirmedAt ?? null;
+    return { success: true, data: { transactionId: payment.id, transactionStatus: payment.status, paymentStatus: po?.paymentStatus, poId: po?.id, poNumber: po?.poNumber, amount: payment.amount, provider: payment.provider, reference: payment.gatewayReference, confirmedAt } };
+  }
+
+  /**
+   * Send a message in a PO conversation
+   * POST /agent/pos/:id/conversation/messages
+   */
+  @Post("pos/:id/conversation/messages")
+  @UseGuards(AgentAuthGuard)
+  async sendPoMessage(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Body() data: SendMessageDto,
+  ) {
+    const agentId = req.agent.id;
+    const result = await this.negotiationService.sendPoMessage(id, agentId, data);
+    return {
+      success: true,
+      data: result,
+      message: "Message sent successfully",
+    };
+  }
+
+  /**
+   * Update delivery details for a PO (lat/lng/address for map)
+   * PUT /agent/pos/:id/delivery
+   */
+  @Put("pos/:id/delivery")
+  @UseGuards(AgentAuthGuard)
+  async updateDelivery(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Body() data: {
+      scheduledDate?: string;
+      driverName?: string | null;
+      driverContact?: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
+      address?: string | null;
+      notes?: string | null;
+      recipientName?: string | null;
+      recipientContact?: string | null;
+    },
+  ) {
+    const agentId = req.agent.id;
+    const result = await this.negotiationService.updateDelivery(id, agentId, data);
     return {
       success: true,
       data: result,

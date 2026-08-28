@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -47,20 +48,28 @@ model Agent {
   province                 String?
   status                   AgentStatus                @default(REGISTERED)
   zipCode                  String?
+  banReason                String?
+  bannedAt                 DateTime?
+  bannedById               Int?
+  suspendedAt              DateTime?
+  suspendedById            Int?
+  suspensionReason         String?
   Organization             Organization?              @relation(fields: [organizationId], references: [id])
   AgentVerification        AgentVerification[]
+  ConversationMessage      ConversationMessage[]
+  ConversationParticipant  ConversationParticipant[]
   Mandate                  Mandate[]
+  NegotiationOffer         NegotiationOffer[]
+  Notification             Notification[]
   OrganizationMembership   OrganizationMembership[]
   ProcurementAgentRequest  ProcurementAgentRequest[]
   organizationInvitation   ProcurementInvitation?
+  PurchaseOrder            PurchaseOrder[]
+  RequestForQuotation      RequestForQuotation[]
+  RevokedRefreshToken      RevokedRefreshToken[]
+  RfqOffer                 RfqOffer[]
   SupplierOrganizationLink SupplierOrganizationLink[]
   SupplierOutletLink       SupplierOutletLink[]
-  RequestForQuotation      RequestForQuotation[]
-  ConversationParticipant  ConversationParticipant[]
-  ConversationMessage      ConversationMessage[]
-  NegotiationOffer         NegotiationOffer[]
-  RfqOffer                 RfqOffer[]
-  RevokedRefreshToken      RevokedRefreshToken[]
 
   @@index([agentType, verificationStatus])
   @@index([organizationId])
@@ -310,17 +319,22 @@ model CustomerDeviceToken {
 }
 
 model Delivery {
-  id            String         @id
-  poId          String         @unique
-  scheduledDate DateTime
-  deliveredAt   DateTime?
-  status        DeliveryStatus @default(SCHEDULED)
-  driverName    String?
-  driverContact String?
-  notes         String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime
-  PurchaseOrder PurchaseOrder  @relation(fields: [poId], references: [id])
+  id               String         @id
+  poId             String         @unique
+  scheduledDate    DateTime
+  deliveredAt      DateTime?
+  status           DeliveryStatus @default(SCHEDULED)
+  driverName       String?
+  driverContact    String?
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime
+  address          String?
+  latitude         Float?
+  longitude        Float?
+  recipientContact String?
+  recipientName    String?
+  PurchaseOrder    PurchaseOrder  @relation(fields: [poId], references: [id])
 }
 
 model DeliveryAddress {
@@ -432,19 +446,20 @@ model ExtraCharge {
 }
 
 model FeeRule {
-  id            String         @id
-  appliesTo     FeeApplication
-  category      String?
-  unitType      String?
-  rateType      FeeRateType
-  rate          Float
-  tierModifier  Float?         @default(0)
-  effectiveFrom DateTime       @default(now())
-  effectiveTo   DateTime?
-  isActive      Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime
-  deletedAt     DateTime?
+  id                 String               @id
+  appliesTo          FeeApplication
+  category           String?
+  unitType           String?
+  rateType           FeeRateType
+  rate               Float
+  tierModifier       Float?               @default(0)
+  effectiveFrom      DateTime             @default(now())
+  effectiveTo        DateTime?
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  deletedAt          DateTime?
+  PaymentTransaction PaymentTransaction[]
 
   @@index([appliesTo, category, unitType, isActive])
 }
@@ -899,19 +914,26 @@ model Media {
 }
 
 model Notification {
-  id           Int              @id @default(autoincrement())
-  orgId        Int
-  outletId     Int?
-  itemId       Int?
-  type         NotificationType
-  title        String
-  message      String
-  isRead       Boolean          @default(false)
-  createdAt    DateTime         @default(now())
-  deletedAt    DateTime?
-  Item         Item?            @relation(fields: [itemId], references: [id])
-  Organization Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  Outlet       Outlet?          @relation(fields: [outletId], references: [id])
+  id             Int              @id @default(autoincrement())
+  orgId          Int?
+  outletId       Int?
+  itemId         Int?
+  type           NotificationType
+  title          String
+  message        String
+  isRead         Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  deletedAt      DateTime?
+  agentId        String?
+  conversationId String?
+  Agent          Agent?           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  Conversation   Conversation?    @relation(fields: [conversationId], references: [id])
+  Item           Item?            @relation(fields: [itemId], references: [id])
+  Organization   Organization?    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  Outlet         Outlet?          @relation(fields: [outletId], references: [id])
+
+  @@index([agentId, conversationId, isRead])
+  @@index([orgId, conversationId, isRead])
 }
 
 model OrderCourierPreference {
@@ -967,6 +989,13 @@ model Organization {
   verificationExpiresAt                                                         DateTime?
   verificationStatus                                                            OrgVerificationStatus          @default(UNVERIFIED)
   passwordHash                                                                  String?
+  accountStatus                                                                 OrganizationAccountStatus      @default(ACTIVE)
+  banReason                                                                     String?
+  bannedAt                                                                      DateTime?
+  bannedById                                                                    Int?
+  suspendedAt                                                                   DateTime?
+  suspendedById                                                                 Int?
+  suspensionReason                                                              String?
   AccountTitle                                                                  AccountTitle[]
   Agent                                                                         Agent[]
   Attendance                                                                    Attendance[]
@@ -976,6 +1005,8 @@ model Organization {
   BusinessVerificationDocument                                                  BusinessVerificationDocument[]
   Center                                                                        Center[]
   Contact                                                                       Contact[]
+  ConversationMessage                                                           ConversationMessage[]
+  ConversationParticipant                                                       ConversationParticipant[]
   Department                                                                    Department[]
   Employee                                                                      Employee[]
   GISRow                                                                        GISRow[]
@@ -984,6 +1015,7 @@ model Organization {
   ItemGroup                                                                     ItemGroup[]
   MandateOffer                                                                  MandateOffer[]
   MandateTransaction                                                            MandateTransaction[]
+  NegotiationOffer                                                              NegotiationOffer[]
   Notification                                                                  Notification[]
   OrgItemCategory                                                               OrgItemCategory[]
   OrganizationMembership                                                        OrganizationMembership[]
@@ -999,8 +1031,10 @@ model Organization {
   PurchaseOrder_PurchaseOrder_buyerOrgIdToOrganization                          PurchaseOrder[]                @relation("PurchaseOrder_buyerOrgIdToOrganization")
   PurchaseOrder_PurchaseOrder_supplierOrgIdToOrganization                       PurchaseOrder[]                @relation("PurchaseOrder_supplierOrgIdToOrganization")
   ReceivedItemMap                                                               ReceivedItemMap[]
+  RequestForQuotation                                                           RequestForQuotation[]
   RestockCycle                                                                  RestockCycle[]
   RestockSchedule                                                               RestockSchedule[]
+  RfqOffer                                                                      RfqOffer[]
   SalesOrder                                                                    SalesOrder[]
   ScPwdCustomer                                                                 ScPwdCustomer[]
   Shift                                                                         Shift[]
@@ -1019,11 +1053,8 @@ model Organization {
   User                                                                          User[]
   VatType                                                                       VatType[]
   Wallet                                                                        Wallet?
-  RequestForQuotation                                                           RequestForQuotation[]
-  ConversationParticipant                                                       ConversationParticipant[]
-  ConversationMessage                                                           ConversationMessage[]
-  NegotiationOffer                                                              NegotiationOffer[]
-  RfqOffer                                                                      RfqOffer[]
+
+  @@index([accountStatus])
 }
 
 model OrganizationReview {
@@ -1071,8 +1102,6 @@ model Outlet {
   latitude              Float?
   longitude             Float?
   bannerImage           String?
-  operatingHours        String?
-  bio                   String?
   bir                   String?
   isVatRegistered       Boolean                 @default(false)
   ptu                   String?
@@ -1166,14 +1195,17 @@ model OutletStaff {
 }
 
 model POLineItem {
-  id             String        @id
-  poId           String
-  supplierItemId String
-  qty            Int
-  unitPrice      Float
-  subtotal       Float
-  PurchaseOrder  PurchaseOrder @relation(fields: [poId], references: [id])
-  SupplierItem   SupplierItem  @relation(fields: [supplierItemId], references: [id])
+  id              String        @id
+  poId            String
+  supplierItemId  String
+  qty             Int
+  unitPrice       Float
+  subtotal        Float
+  itemName        String?
+  itemSku         String?
+  itemDescription String?
+  PurchaseOrder   PurchaseOrder @relation(fields: [poId], references: [id])
+  SupplierItem    SupplierItem  @relation(fields: [supplierItemId], references: [id])
 }
 
 model Page {
@@ -1205,20 +1237,26 @@ model PaymentGatewayCredential {
 }
 
 model PaymentTransaction {
-  id               String                   @id
-  provider         PaymentGatewayProvider
-  environment      Environment
-  gatewayReference String?                  @unique
-  amount           Float
-  feeAmount        Float                    @default(0)
-  status           PaymentTransactionStatus @default(PENDING)
-  relatedType      PaymentRelatedType
-  relatedId        String
-  payerOrgId       Int?
-  payerAgentId     String?
-  createdAt        DateTime                 @default(now())
-  updatedAt        DateTime
-  deletedAt        DateTime?
+  id                String                   @id
+  provider          PaymentGatewayProvider
+  environment       Environment
+  gatewayReference  String?                  @unique
+  amount            Float
+  feeAmount         Float                    @default(0)
+  status            PaymentTransactionStatus @default(PENDING)
+  relatedType       PaymentRelatedType
+  relatedId         String                   @unique(map: "PaymentTransaction_one_confirmed_purchase_order_payment_key", where: raw("((\"relatedType\" = 'PURCHASE_ORDER'::\"PaymentRelatedType\") AND (\"deletedAt\" IS NULL) AND (status = 'SUCCEEDED'::\"PaymentTransactionStatus\"))"))
+  payerOrgId        Int?
+  payerAgentId      String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime
+  deletedAt         DateTime?
+  feeRuleId         String?
+  feeSnapshot       Json?
+  netAmount         Float                    @default(0)
+  providerFeeAmount Float                    @default(0)
+  supplierOrgId     Int?
+  FeeRule           FeeRule?                 @relation(fields: [feeRuleId], references: [id])
 
   @@index([provider, environment, status])
   @@index([relatedType, relatedId])
@@ -1235,20 +1273,24 @@ model PaymongoAPIKeys {
 }
 
 model PayoutMethod {
-  id                  Int              @id @default(autoincrement())
-  orgId               Int
-  type                PayoutMethodType
-  accountName         String
-  maskedAccountNumber String
-  bankName            String?
-  isVerified          Boolean          @default(false)
-  isDefault           Boolean          @default(false)
-  verifiedAt          DateTime?
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime
-  deletedAt           DateTime?
-  Organization        Organization     @relation(fields: [orgId], references: [id])
-  Withdrawal          Withdrawal[]
+  id                   Int              @id @default(autoincrement())
+  orgId                Int
+  type                 PayoutMethodType
+  accountName          String
+  maskedAccountNumber  String
+  bankName             String?
+  isVerified           Boolean          @default(false)
+  isDefault            Boolean          @default(false)
+  verifiedAt           DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime
+  deletedAt            DateTime?
+  encryptedDestination String
+  encryptionKeyVersion String           @default("v1")
+  environment          Environment      @default(PRODUCTION)
+  isActive             Boolean          @default(true)
+  Organization         Organization     @relation(fields: [orgId], references: [id])
+  Withdrawal           Withdrawal[]
 
   @@index([orgId])
 }
@@ -1334,21 +1376,39 @@ model PromoType {
 model PurchaseOrder {
   id                                                     String                    @id
   poNumber                                               String                    @unique
-  buyerOrgId                                             Int
+  buyerOrgId                                             Int?
   supplierOrgId                                          Int
   status                                                 POStatus                  @default(PENDING)
+  source                                                 PurchaseOrderSource       @default(DIRECT_ORDER)
+  supplierConfirmation                                   SupplierConfirmation      @default(REVIEW_REQUIRED)
+  supplierConfirmedAt                                    DateTime?
+  supplierExpectedDeliveryAt                             DateTime?
+  supplierNote                                           String?
   notes                                                  String?
   requestedDate                                          DateTime?
   totalAmount                                            Float
   vatAmount                                              Float                     @default(0)
   createdAt                                              DateTime                  @default(now())
   updatedAt                                              DateTime
-  deliveryOutletId                                       Int
+  deliveryOutletId                                       Int?
   supplierOrganizationLinkId                             String?
+  agentId                                                String?
+  conversationId                                         String?                   @unique
+  paymentStatus                                          PaymentStatus             @default(PENDING)
+  receiptSnapshot                                        Json?
+  paymentMethod                                          PaymentMethod?
+  paymentPreparedAt                                      DateTime?
+  paymentReference                                       String?
+  rejectionReason                                        String?
+  extraCharges                                           Json?
+  extraChargesTotal                                      Float                     @default(0)
+  subtotalAmount                                         Float                     @default(0)
   Delivery                                               Delivery?
   POLineItem                                             POLineItem[]
-  Organization_PurchaseOrder_buyerOrgIdToOrganization    Organization              @relation("PurchaseOrder_buyerOrgIdToOrganization", fields: [buyerOrgId], references: [id])
-  Outlet                                                 Outlet                    @relation(fields: [deliveryOutletId], references: [id])
+  Agent                                                  Agent?                    @relation(fields: [agentId], references: [id])
+  Organization_PurchaseOrder_buyerOrgIdToOrganization    Organization?             @relation("PurchaseOrder_buyerOrgIdToOrganization", fields: [buyerOrgId], references: [id])
+  Conversation                                           Conversation?             @relation(fields: [conversationId], references: [id])
+  Outlet                                                 Outlet?                   @relation(fields: [deliveryOutletId], references: [id])
   Organization_PurchaseOrder_supplierOrgIdToOrganization Organization              @relation("PurchaseOrder_supplierOrgIdToOrganization", fields: [supplierOrgId], references: [id])
   SupplierOrganizationLink                               SupplierOrganizationLink? @relation(fields: [supplierOrganizationLinkId], references: [id])
   PurchaseOrderRFQ                                       PurchaseOrderRFQ[]
@@ -1816,6 +1876,7 @@ model SupplierItem {
   ProductSpecification      ProductSpecification[]
   ProductWholesaleSettings  ProductWholesaleSettings?
   ReceivedItemMap           ReceivedItemMap[]
+  RequestForQuotation       RequestForQuotation[]
   SupplierIncomingStock     SupplierIncomingStock[]
   SupplierInventoryMovement SupplierInventoryMovement[]
   SupplierCatalog           SupplierCatalog             @relation(fields: [catalogId], references: [id])
@@ -1834,7 +1895,6 @@ model SupplierItem {
   WholesalePackaging        WholesalePackaging?
   WholesaleQuote            WholesaleQuote[]
   WholesaleShipping         WholesaleShipping?
-  RequestForQuotation       RequestForQuotation[]
 
   @@unique([catalogId, sku])
 }
@@ -1941,73 +2001,6 @@ model WholesaleQuote {
   @@index([status])
 }
 
-enum RfqStatus {
-  DRAFT
-  SUBMITTED
-  UNDER_REVIEW
-  NEGOTIATING
-  SUPPLIER_OFFERED
-  BUYER_COUNTERED
-  NEGOTIATION_COMPLETED
-  NEGOTIATION_ACCEPTED
-  PO_CREATED
-  CANCELLED
-  EXPIRED
-  RFQ_RECEIVED
-  PENDING_SUPPLIER_RESPONSE
-  COUNTER_OFFERED
-  AGENT_ACCEPTED_FINAL
-  SUPPLIER_ACCEPTED_FINAL
-  WAITING_SUPPLIER_CONFIRMATION
-}
-
-enum RfqOfferType {
-  INITIAL_REQUEST
-  COUNTER_OFFER
-  FINAL_OFFER
-  ACCEPTANCE
-  REJECTION
-}
-
-enum RfqOfferStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
-  EXPIRED
-}
-
-enum MessageType {
-  TEXT
-  RFQ_CREATED
-  COUNTER_OFFER
-  FINAL_OFFER
-  PRICE_ACCEPTED
-  PRICE_REJECTED
-  SYSTEM
-  ORDER_CREATED
-  PAYMENT_UPDATE
-  OFFER_ACCEPTED
-  OFFER_REJECTED
-  SUPPLIER_CONFIRMED
-  CONSOLIDATED_PO_CREATED
-}
-
-enum NegotiationStatus {
-  PENDING
-  AGENT_ACCEPTED
-  WAITING_SUPPLIER_CONFIRMATION
-  SUPPLIER_CONFIRMED
-  PO_CREATED
-  REJECTED
-}
-
-enum NegotiationOfferStatus {
-  PENDING
-  COUNTERED
-  ACCEPTED
-  REJECTED
-}
-
 model RequestForQuotation {
   id                   String             @id
   rfqNumber            String             @unique
@@ -2022,21 +2015,21 @@ model RequestForQuotation {
   expectedDeliveryDate DateTime?
   validityDays         Int?
   notes                String?
-  acceptedPrice        Float?
-  acceptedQuantity     Float?
-  acceptedDeliveryDate DateTime?
-  agentAcceptedAt      DateTime?
-  supplierAcceptedAt   DateTime?
-  supplierConfirmedAt  DateTime?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
   deletedAt            DateTime?
-  Agent                Agent?             @relation(fields: [agentId], references: [id])
-  Organization         Organization?      @relation(fields: [supplierOrgId], references: [id])
-  SupplierItem         SupplierItem?      @relation(fields: [supplierItemId], references: [id])
-  Conversation         Conversation?      @relation(fields: [conversationId], references: [id])
-  RfqOffer             RfqOffer[]
+  acceptedDeliveryDate DateTime?
+  acceptedPrice        Float?
+  acceptedQuantity     Float?
+  agentAcceptedAt      DateTime?
+  supplierAcceptedAt   DateTime?
+  supplierConfirmedAt  DateTime?
   PurchaseOrderRFQ     PurchaseOrderRFQ[]
+  Agent                Agent              @relation(fields: [agentId], references: [id])
+  Conversation         Conversation?      @relation(fields: [conversationId], references: [id])
+  SupplierItem         SupplierItem?      @relation(fields: [supplierItemId], references: [id])
+  Organization         Organization?      @relation(fields: [supplierOrgId], references: [id])
+  RfqOffer             RfqOffer[]
 
   @@index([agentId, status])
   @@index([supplierOrgId, status])
@@ -2052,17 +2045,16 @@ model Conversation {
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
   deletedAt               DateTime?
-  RequestForQuotation     RequestForQuotation?
-  ConversationParticipant ConversationParticipant[]
+  poId                    String?                   @unique
   ConversationMessage     ConversationMessage[]
+  ConversationParticipant ConversationParticipant[]
   NegotiationOffer        NegotiationOffer[]
+  Notification            Notification[]
+  PurchaseOrder           PurchaseOrder?
+  RequestForQuotation     RequestForQuotation?
 
   @@index([rfqId])
-}
-
-enum ConversationType {
-  RFQ
-  ORDER
+  @@index([poId])
 }
 
 model ConversationParticipant {
@@ -2073,18 +2065,13 @@ model ConversationParticipant {
   role           ConversationRole @default(AGENT)
   joinedAt       DateTime         @default(now())
   lastReadAt     DateTime?
-  Conversation   Conversation     @relation(fields: [conversationId], references: [id])
   Agent          Agent?           @relation(fields: [agentId], references: [id])
+  Conversation   Conversation     @relation(fields: [conversationId], references: [id])
   Organization   Organization?    @relation(fields: [organizationId], references: [id])
 
   @@index([conversationId])
   @@index([agentId])
   @@index([organizationId])
-}
-
-enum ConversationRole {
-  AGENT
-  SUPPLIER
 }
 
 model ConversationMessage {
@@ -2093,10 +2080,10 @@ model ConversationMessage {
   senderAgentId   String?
   senderOrgId     Int?
   message         String
-  type            MessageType   @default(TEXT)
-  rfqOfferId      String?
   createdAt       DateTime      @default(now())
   attachments     String[]      @default([])
+  rfqOfferId      String?
+  type            MessageType   @default(TEXT)
   deliveredAt     DateTime?
   seenAt          DateTime?
   clientMessageId String?
@@ -2121,14 +2108,14 @@ model NegotiationOffer {
   quantity             Float
   unitPrice            Float
   deliveryDate         DateTime?
+  notes                String?
+  status               NegotiationOfferStatus @default(PENDING)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
   minimumOrderQuantity Int?
   estimatedLeadTime    String?
   validUntil           DateTime?
-  notes                String?
-  status               NegotiationOfferStatus @default(PENDING)
   negotiationStatus    NegotiationStatus?     @default(PENDING)
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
   Conversation         Conversation           @relation(fields: [conversationId], references: [id])
   Agent                Agent?                 @relation(fields: [senderAgentId], references: [id])
   Organization         Organization?          @relation(fields: [senderOrgId], references: [id])
@@ -2147,11 +2134,11 @@ model RfqOffer {
   quantity            Int
   estimatedLeadDays   Int?
   validUntil          DateTime?
-  deliveryDate        DateTime?
   notes               String?
   status              RfqOfferStatus      @default(PENDING)
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
+  deliveryDate        DateTime?
   RequestForQuotation RequestForQuotation @relation(fields: [rfqId], references: [id])
   Agent               Agent?              @relation(fields: [senderAgentId], references: [id])
   Organization        Organization?       @relation(fields: [senderSupplierId], references: [id])
@@ -2560,26 +2547,28 @@ model WalletLedgerEntry {
   deletedAt    DateTime?
   Wallet       Wallet            @relation(fields: [walletId], references: [id])
 
+  @@unique([walletId, sourceType, referenceId])
   @@index([sourceType, referenceId])
   @@index([walletId, createdAt])
 }
 
 model Withdrawal {
-  id              Int              @id @default(autoincrement())
-  walletId        Int
-  payoutMethodId  Int
-  amount          Float
-  status          WithdrawalStatus @default(PENDING)
-  requestedById   Int
-  approvedById    Int?
-  requestedAt     DateTime         @default(now())
-  approvedAt      DateTime?
-  completedAt     DateTime?
-  rejectionReason String?
-  environment     Environment      @default(PRODUCTION)
-  deletedAt       DateTime?
-  PayoutMethod    PayoutMethod     @relation(fields: [payoutMethodId], references: [id])
-  Wallet          Wallet           @relation(fields: [walletId], references: [id])
+  id               Int              @id @default(autoincrement())
+  walletId         Int
+  payoutMethodId   Int
+  amount           Float
+  status           WithdrawalStatus @default(PENDING)
+  requestedById    Int
+  approvedById     Int?
+  requestedAt      DateTime         @default(now())
+  approvedAt       DateTime?
+  completedAt      DateTime?
+  rejectionReason  String?
+  environment      Environment      @default(PRODUCTION)
+  deletedAt        DateTime?
+  sandboxReference String?          @unique
+  PayoutMethod     PayoutMethod     @relation(fields: [payoutMethodId], references: [id])
+  Wallet           Wallet           @relation(fields: [walletId], references: [id])
 
   @@index([walletId, status])
 }
@@ -3237,12 +3226,154 @@ model ProcurementInvitation {
   @@index([usedByAgentId])
 }
 
+model PlatformWallet {
+  id                        Int                         @id @default(autoincrement())
+  currency                  String                      @unique @default("PHP")
+  balance                   Float                       @default(0)
+  heldBalance               Float                       @default(0)
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime
+  PlatformWalletLedgerEntry PlatformWalletLedgerEntry[]
+}
+
+model PlatformWalletLedgerEntry {
+  id                   String                   @id
+  walletId             Int
+  type                 LedgerEntryType
+  sourceType           PlatformLedgerSourceType
+  referenceId          String?
+  paymentTransactionId String?
+  amount               Float
+  balanceAfter         Float
+  description          String?
+  environment          Environment              @default(PRODUCTION)
+  createdAt            DateTime                 @default(now())
+  PlatformWallet       PlatformWallet           @relation(fields: [walletId], references: [id])
+
+  @@unique([walletId, sourceType, referenceId])
+  @@index([paymentTransactionId])
+  @@index([walletId, createdAt])
+}
+
+model PlatformFeeRecord {
+  id                   String      @id
+  paymentTransactionId String      @unique
+  purchaseOrderId      String?
+  supplierOrgId        Int?
+  grossAmount          Float
+  feeAmount            Float
+  providerFeeAmount    Float       @default(0)
+  netAmount            Float
+  feeRuleId            String?
+  feeSnapshot          Json?
+  environment          Environment
+  createdAt            DateTime    @default(now())
+
+  @@index([createdAt])
+  @@index([purchaseOrderId])
+  @@index([supplierOrgId, createdAt])
+}
+
+enum RfqStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  NEGOTIATING
+  SUPPLIER_OFFERED
+  BUYER_COUNTERED
+  NEGOTIATION_COMPLETED
+  PO_CREATED
+  CANCELLED
+  EXPIRED
+  NEGOTIATION_ACCEPTED
+  RFQ_RECEIVED
+  PENDING_SUPPLIER_RESPONSE
+  COUNTER_OFFERED
+  AGENT_ACCEPTED_FINAL
+  SUPPLIER_ACCEPTED_FINAL
+  WAITING_SUPPLIER_CONFIRMATION
+}
+
+enum RfqOfferType {
+  INITIAL_REQUEST
+  COUNTER_OFFER
+  FINAL_OFFER
+  ACCEPTANCE
+  REJECTION
+}
+
+enum RfqOfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum MessageType {
+  TEXT
+  RFQ_CREATED
+  COUNTER_OFFER
+  FINAL_OFFER
+  PRICE_ACCEPTED
+  PRICE_REJECTED
+  SYSTEM
+  ORDER_CREATED
+  PAYMENT_UPDATE
+  OFFER_ACCEPTED
+  OFFER_REJECTED
+  SUPPLIER_CONFIRMED
+  CONSOLIDATED_PO_CREATED
+  PO_ACCEPTED
+  PO_REJECTED
+  RECEIPT_UPLOADED
+  PAYMENT_RECEIVED
+  DELIVERY_SCHEDULED
+  SHIPMENT_DISPATCHED
+  DELIVERY_COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  REFUNDED
+  PREPARING
+}
+
+enum NegotiationStatus {
+  PENDING
+  AGENT_ACCEPTED
+  WAITING_SUPPLIER_CONFIRMATION
+  SUPPLIER_CONFIRMED
+  PO_CREATED
+  REJECTED
+}
+
+enum NegotiationOfferStatus {
+  PENDING
+  COUNTERED
+  ACCEPTED
+  REJECTED
+}
+
+enum ConversationType {
+  RFQ
+  ORDER
+}
+
+enum ConversationRole {
+  AGENT
+  SUPPLIER
+}
+
 enum AgentStatus {
   REGISTERED
   PENDING_VERIFICATION
   PENDING_ORGANIZATION_APPROVAL
   ACTIVE
   REJECTED
+  SUSPENDED
+  BANNED
 }
 
 enum Access {
@@ -3350,6 +3481,7 @@ enum Environment {
 enum FeeApplication {
   MANDATE_TRANSACTION
   RETAIL_ORDER
+  PURCHASE_ORDER
 }
 
 enum FeeRateType {
@@ -3487,6 +3619,17 @@ enum POStatus {
   CANCELLED
 }
 
+enum PurchaseOrderSource {
+  DIRECT_ORDER
+  RFQ
+}
+
+enum SupplierConfirmation {
+  REVIEW_REQUIRED
+  CONFIRMED
+  DECLINED
+}
+
 enum PaymentGatewayProvider {
   PAYMONGO
   GCASH
@@ -3505,6 +3648,7 @@ enum PaymentRelatedType {
   SALES_ORDER
   MANDATE_TRANSACTION
   SUBSCRIPTION
+  PURCHASE_ORDER
 }
 
 enum PaymentTransactionStatus {
@@ -3512,6 +3656,11 @@ enum PaymentTransactionStatus {
   SUCCEEDED
   FAILED
   REFUNDED
+  AWAITING_PAYMENT
+  RECONCILIATION_REQUIRED
+  PROCESSING
+  CANCELLED
+  EXPIRED
 }
 
 enum PaymentType {
@@ -3650,6 +3799,8 @@ enum WithdrawalStatus {
   PROCESSING
   COMPLETED
   REJECTED
+  FAILED
+  CANCELLED
 }
 
 enum MarketplaceListingStatus {
@@ -3735,4 +3886,19 @@ enum ProcurementInvitationStatus {
   REVOKED
   USED
   REJECTED
+}
+
+enum OrganizationAccountStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum PlatformLedgerSourceType {
+  TRANSACTION_FEE
+  SUBSCRIPTION_FEE
+  WITHDRAWAL_FEE
+  REFUND
+  REVERSAL
+  MANUAL_ADJUSTMENT
 }

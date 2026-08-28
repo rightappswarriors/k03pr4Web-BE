@@ -1,10 +1,11 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { DatabaseService } from "./database.service";
 import { RealtimeGateway } from "../gateway/realtime.gateway";
+import { PrismaService } from "./prisma.service";
 
 @Injectable()
 export class NotificationService {
-  constructor(private readonly db: DatabaseService, private readonly realtime: RealtimeGateway) {}
+  constructor(private readonly prisma: PrismaService, private readonly db: DatabaseService, private readonly realtime: RealtimeGateway) { }
 
   async notifications(orgId: number) {
     if (!orgId) throw new BadRequestException({ error: "orgId is required" });
@@ -27,5 +28,24 @@ export class NotificationService {
   async deleteNotification(id: number) {
     await this.db.query(`DELETE FROM "Notification" WHERE id=$1`, [id]);
     return { message: "Deleted successfully" };
+  }
+  async markConversationNotificationsRead(
+    conversationId: string,
+    agentId: string,
+    orgId?: number | null,
+  ): Promise<void> {
+    const { count } = await this.prisma.notification.updateMany({
+      where: {
+        conversationId,
+        agentId,
+        ...(orgId ? { orgId } : {}),
+        isRead: false,
+      },
+      data: { isRead: true },
+    });
+
+    if (count > 0) {
+      this.realtime.emitToUser(agentId, "notification:read", { conversationId });
+    }
   }
 }

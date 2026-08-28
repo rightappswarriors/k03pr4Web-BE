@@ -435,6 +435,7 @@ export class RfqService {
           title: "New RFQ Received",
           message: `You have received a new RFQ #${rfqNumber} from ${rfq.Agent?.fullname || "an agent"}.`,
           type: "NEW_TRANSACTION",
+          conversationId: conversation.id,
         },
       });
 
@@ -710,6 +711,9 @@ export class RfqService {
         buyerOrgId: buyerOrgId ?? rfq.supplierOrgId ?? 0,
         supplierOrgId: rfq.supplierOrgId ?? 0,
         status: "PENDING",
+        source: "RFQ",
+        supplierConfirmation: "CONFIRMED",
+        supplierConfirmedAt: new Date(),
         notes: rfq.notes || offer.notes || "Draft PO generated from accepted RFQ offer",
         requestedDate: new Date(),
         totalAmount: subtotal,

@@ -532,6 +532,8 @@ export class WholesaleService {
         buyerOrgId: userOrg.orgId,
         supplierOrgId,
         status: "PENDING",
+        source: "DIRECT_ORDER",
+        supplierConfirmation: "REVIEW_REQUIRED",
         totalAmount: quote.subtotal,
         deliveryOutletId: 1, // TODO: Resolve proper delivery outlet
         updatedAt: new Date(),

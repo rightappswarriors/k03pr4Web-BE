@@ -337,6 +337,22 @@ export class RfqNegotiationService {
     return rfq;
   }
 
+  private async assertNegotiationActionable(rfqId: string, status: string) {
+    if (status === "PO_CREATED") {
+      throw new BadRequestException({ error: "This RFQ has already been converted to a Purchase Order." });
+    }
+    const existingPO = await this.prisma.purchaseOrderRFQ.findFirst({
+      where: { rfqId },
+      select: { id: true },
+    });
+    if (existingPO) {
+      throw new BadRequestException({ error: "This RFQ has already been converted to a Purchase Order." });
+    }
+    if (["CANCELLED", "EXPIRED"].includes(status)) {
+      throw new BadRequestException({ error: "This RFQ is no longer actionable." });
+    }
+  }
+
   // ============================================
   // Send a counter offer (agent or supplier)
   // ============================================
@@ -349,6 +365,7 @@ export class RfqNegotiationService {
     logDevCtx("Negotiation", "Sending counter offer", { rfqId, sender, data });
 
     const rfq = await this.verifyAccess(rfqId, sender);
+    await this.assertNegotiationActionable(rfqId, rfq.status);
 
     // Determine the other party for notifications
     const otherPartyOrgId = rfq.supplierOrgId;
@@ -495,6 +512,7 @@ export class RfqNegotiationService {
       senderType: "SUPPLIER",
       senderSupplierId: supplierOrgId,
     });
+    await this.assertNegotiationActionable(rfqId, rfq.status);
 
     const breakdown = computePriceBreakdown(data.unitPrice, data.quantity, rfq.SupplierItem);
 
@@ -620,40 +638,29 @@ export class RfqNegotiationService {
       senderAgentId: agentId,
     });
 
-    // Find the offer to accept (must be a FINAL_OFFER with PENDING status)
+    await this.assertNegotiationActionable(rfqId, rfq.status);
+
+    // Accept the latest pending commercial offer created by the other party.
     let offer;
     if (data?.offerId) {
       offer = await this.prisma.rfqOffer.findFirst({
         where: { id: data.offerId, rfqId },
       });
     } else {
-      // Accept the latest FINAL_OFFER that is still PENDING
+      // The latest pending offer is authoritative; this supports both supplier
+      // counters and an agent's original submitted offer.
       offer = await this.prisma.rfqOffer.findFirst({
         where: {
           rfqId,
-          offerType: "FINAL_OFFER",
           status: "PENDING",
         },
         orderBy: { createdAt: "desc" },
       });
     }
 
-    if (!offer) {
-      // If no FINAL_OFFER found, reject any PENDING offer
-      const pendingOffer = await this.prisma.rfqOffer.findFirst({
-        where: { rfqId, status: "PENDING" },
-        orderBy: { createdAt: "desc" },
-      });
-
-      if (!pendingOffer) {
-        throw new NotFoundException({
-          error: "No final offer found to accept.",
-        });
-      }
-
-      throw new BadRequestException({
-        error: "The selected offer is not a final offer and cannot be accepted directly.",
-      });
+    if (!offer) throw new NotFoundException({ error: "No actionable offer found to accept." });
+    if (offer.senderAgentId === agentId) {
+      throw new BadRequestException({ error: "You cannot accept your own offer." });
     }
 
     // FIX: compute the real subtotal/VAT/total from the RFQ's own SupplierItem
@@ -804,6 +811,7 @@ export class RfqNegotiationService {
     logDevCtx("Negotiation", "Rejecting offer", { rfqId, sender, data });
 
     const rfq = await this.verifyAccess(rfqId, sender);
+    await this.assertNegotiationActionable(rfqId, rfq.status);
 
     // Find the latest PENDING offer to reject
     const pendingOffer = await this.prisma.rfqOffer.findFirst({

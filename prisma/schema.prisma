@@ -1197,17 +1197,23 @@ model OutletStaff {
 }
 
 model POLineItem {
-  id              String        @id
-  poId            String
-  supplierItemId  String
-  qty             Int
-  unitPrice       Float
-  subtotal        Float
-  itemName        String?
-  itemSku         String?
-  itemDescription String?
-  PurchaseOrder   PurchaseOrder @relation(fields: [poId], references: [id])
-  SupplierItem    SupplierItem  @relation(fields: [supplierItemId], references: [id])
+  id                    String               @id
+  poId                  String
+  supplierItemId        String
+  supplierItemVariantId String?
+  qty                   Int
+  unitPrice             Float
+  subtotal              Float
+  itemName              String?
+  itemSku               String?
+  itemDescription       String?
+  variantName           String?
+  variantSku            String?
+  PurchaseOrder         PurchaseOrder        @relation(fields: [poId], references: [id])
+  SupplierItem          SupplierItem         @relation(fields: [supplierItemId], references: [id])
+  SupplierItemVariant   SupplierItemVariant? @relation(fields: [supplierItemVariantId], references: [id])
+
+  @@index([supplierItemVariantId])
 }
 
 model Page {
@@ -2983,6 +2989,7 @@ model SupplierItemVariant {
   SupplierItem               SupplierItem               @relation(fields: [supplierItemId], references: [id], onDelete: Cascade)
   SupplierItemRVariantImages SupplierItemVariantImage[]
   SupplierItemVariantValue   SupplierItemVariantValue[]
+  POLineItem                 POLineItem[]
 
   @@index([supplierItemId])
   @@index([supplierItemId, isActive])

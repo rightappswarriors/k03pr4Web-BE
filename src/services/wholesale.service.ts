@@ -426,10 +426,16 @@ export class WholesaleService {
     }
 
     // If variant selected: variant is authoritative for identity/inventory,
-    // but MOQ and tier pricing still resolve from the parent item.
+    // and pricing priority is: variant's own tier → variant's own price →
+    // parent item's tier → parent item's base price. Parent pricing is a
+    // fallback for when the variant has no pricing of its own — it never
+    // overrides a variant that does.
     if (variantId) {
       const variant = await this.prisma.supplierItemVariant.findUnique({
         where: { id: variantId, deletedAt: null },
+        include: {
+          PriceTier: { where: { deletedAt: null }, orderBy: { minQty: "asc" } },
+        },
       });
 
       if (!variant) {
@@ -448,13 +454,31 @@ export class WholesaleService {
         throw new BadRequestException({ error: `Only ${variant.availableQty} units available for this variant` });
       }
 
-      const priceTiers = item.PriceTier.map((t) => ({
+      // Step 1: variant's own tiers
+      const variantPriceTiers = variant.PriceTier.map((t) => ({
         minQty: t.minQty,
         maxQty: t.maxQty ?? null,
         price: t.price,
       }));
-      const tierApplied = this.computeBracketPrice(quantity, priceTiers);
-      const unitPrice = tierApplied?.price ?? variant.price;
+      const variantTierApplied = this.computeBracketPrice(quantity, variantPriceTiers);
+
+      // Step 3: parent's own tiers (item.PriceTier already only includes
+      // item-level rows since it's queried via SupplierItem's own relation,
+      // which is unaffected by the new variant-scoped rows)
+      const parentPriceTiers = item.PriceTier.map((t) => ({
+        minQty: t.minQty,
+        maxQty: t.maxQty ?? null,
+        price: t.price,
+      }));
+      const parentTierApplied = this.computeBracketPrice(quantity, parentPriceTiers);
+
+      // Priority: variant tier → variant.price → parent tier → parent base price
+      const tierApplied = variantTierApplied ?? parentTierApplied;
+      const unitPrice =
+        variantTierApplied?.price ??
+        (variant.price > 0 ? variant.price : undefined) ??
+        parentTierApplied?.price ??
+        item.unitPrice;
 
       return {
         unitPrice,

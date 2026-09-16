@@ -436,6 +436,8 @@ export class RfqService {
           message: `You have received a new RFQ #${rfqNumber} from ${rfq.Agent?.fullname || "an agent"}.`,
           type: "NEW_TRANSACTION",
           conversationId: conversation.id,
+          referenceType: "RFQ",
+          referenceId: rfq.id,
         },
       });
 
@@ -694,12 +696,6 @@ export class RfqService {
     const vatAmount = Math.round(totalAmount * 0.12 * 100) / 100; // 12% VAT, rounded
     const subtotal = Math.round(totalAmount * 100) / 100;
 
-    // Determine scheduled delivery date from the accepted offer or RFQ
-    const deliverySource = rfq.acceptedDeliveryDate || rfq.expectedDeliveryDate;
-    const scheduledDate = deliverySource
-      ? new Date(deliverySource)
-      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // default: 7 days from now
-
     // Generate PO number
     const poNumber = `PO-${Date.now()}`;
 
@@ -712,8 +708,7 @@ export class RfqService {
         supplierOrgId: rfq.supplierOrgId ?? 0,
         status: "PENDING",
         source: "RFQ",
-        supplierConfirmation: "CONFIRMED",
-        supplierConfirmedAt: new Date(),
+        supplierConfirmation: "REVIEW_REQUIRED",
         notes: rfq.notes || offer.notes || "Draft PO generated from accepted RFQ offer",
         requestedDate: new Date(),
         totalAmount: subtotal,
@@ -736,18 +731,6 @@ export class RfqService {
         },
       });
     }
-
-    // 3. Create Delivery (SCHEDULED)
-    await tx.delivery.create({
-      data: {
-        id: `del_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        poId: purchaseOrder.id,
-        scheduledDate,
-        status: "SCHEDULED",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
 
     logDevCtx("RFQ", "Purchase Order generated", {
       poId: purchaseOrder.id,

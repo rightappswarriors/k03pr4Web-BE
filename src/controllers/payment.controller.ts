@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Headers, Param, Post, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, Param, Post, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../services/prisma.service';
 import { PaymentProviderRegistry } from '../services/payments/payment-provider.registry';
 import { PaymentConfirmationService } from '../services/payments/payment-confirmation.service';
 import { PurchaseOrderPaymentService } from '../services/purchase-order-payment.service';
 import { SandboxPaymentReconciliationService } from '../services/payments/sandbox-payment-reconciliation.service';
 import { PaymentGatewayProvider } from '../generated/prisma/client';
+import { PurchaseOrderCancellationService } from '../services/purchase-order-cancellation.service';
 
 @Controller('payments')
 export class PaymentController {
@@ -14,7 +15,50 @@ export class PaymentController {
     private readonly confirmation: PaymentConfirmationService,
     private readonly purchaseOrderPayment: PurchaseOrderPaymentService,
     private readonly sandboxReconciliation: SandboxPaymentReconciliationService,
+    private readonly purchaseOrderCancellation: PurchaseOrderCancellationService,
   ) {}
+
+  @Get('admin/purchase-orders/:id/cancellation')
+  async purchaseOrderCancellationState(
+    @Param('id') id: string,
+    @Headers('x-portal-commerce-key') key?: string,
+  ) {
+    this.purchaseOrderCancellation.assertInternalAccess(key);
+    return { success: true, data: await this.purchaseOrderCancellation.getState(id) };
+  }
+
+  @Post('admin/purchase-orders/:id/cancellation/request')
+  async requestPurchaseOrderCancellation(
+    @Param('id') id: string,
+    @Body() body: { reason?: string; actorUserId?: number; actorOrgId?: number },
+    @Headers('x-portal-commerce-key') key?: string,
+  ) {
+    this.purchaseOrderCancellation.assertInternalAccess(key);
+    if (!body?.actorOrgId) throw new BadRequestException('Buyer organization context is required.');
+    return { success: true, data: await this.purchaseOrderCancellation.requestOrCancel(id, body.actorOrgId, { orgId: body.actorOrgId, userId: body.actorUserId }, body.reason ?? '') };
+  }
+
+  @Post('admin/purchase-orders/:id/cancellation/approve')
+  async approvePurchaseOrderCancellation(
+    @Param('id') id: string,
+    @Body() body: { actorUserId?: number; actorOrgId?: number },
+    @Headers('x-portal-commerce-key') key?: string,
+  ) {
+    this.purchaseOrderCancellation.assertInternalAccess(key);
+    if (!body?.actorOrgId) throw new BadRequestException('Supplier organization context is required.');
+    return { success: true, data: await this.purchaseOrderCancellation.approve(id, body.actorOrgId, { orgId: body.actorOrgId, userId: body.actorUserId }) };
+  }
+
+  @Post('admin/purchase-orders/:id/cancellation/reject')
+  async rejectPurchaseOrderCancellation(
+    @Param('id') id: string,
+    @Body() body: { reason?: string; actorUserId?: number; actorOrgId?: number },
+    @Headers('x-portal-commerce-key') key?: string,
+  ) {
+    this.purchaseOrderCancellation.assertInternalAccess(key);
+    if (!body?.actorOrgId) throw new BadRequestException('Supplier organization context is required.');
+    return { success: true, data: await this.purchaseOrderCancellation.reject(id, body.actorOrgId, { orgId: body.actorOrgId, userId: body.actorUserId }, body.reason ?? '') };
+  }
 
   @Get(':id')
   async status(@Param('id') id: string) {
@@ -25,11 +69,14 @@ export class PaymentController {
   @Post('admin/sandbox-reconciliation/:id/confirm')
   async confirmSandboxPayment(
     @Param('id') id: string,
-    @Body() body: { reason?: string },
+    @Body() body: { reason?: string; actorUserId?: number; actorOrgId?: number },
     @Headers('x-sandbox-settlement-key') key?: string,
   ) {
     this.sandboxReconciliation.assertInternalAccess(key);
-    const result = await this.sandboxReconciliation.confirm(id, body?.reason ?? '');
+    const result = await this.sandboxReconciliation.confirm(id, body?.reason ?? '', {
+      userId: body?.actorUserId,
+      orgId: body?.actorOrgId,
+    });
     return { success: true, data: { id: result.payment.id, status: result.payment.status, alreadyConfirmed: result.alreadyConfirmed } };
   }
 
@@ -92,6 +139,19 @@ export class PaymentController {
     if (!payment.gatewayReference || payment.gatewayReference !== providerReference) {
       trace(12, { intendedStatus: 'NONE', reason: 'provider-reference-mismatch' });
       throw new ServiceUnavailableException('Maya webhook provider reference does not match its payment transaction.');
+    }
+    if (payment.status === 'FAILED' || payment.status === 'CANCELLED' || payment.status === 'EXPIRED') {
+      if (event.status === 'SUCCEEDED') {
+        await this.purchaseOrderPayment.recordWebhookOutcome(payment, event);
+      }
+      const terminal = await this.prisma.paymentTransaction.findUniqueOrThrow({ where: { id: payment.id } });
+      trace(12, { intendedStatus: terminal.status, reason: 'payment-already-terminal' });
+      trace(15, { finalStatus: terminal.status });
+      return {
+        received: true,
+        terminal: true,
+        reconciliationRequired: terminal.status === 'RECONCILIATION_REQUIRED',
+      };
     }
     const amountMatches = Math.abs(event.amount - payment.amount) <= 0.009;
     const currencyMatches = event.currency === 'PHP';

@@ -8,7 +8,9 @@ export type RealtimeEvent =
   | "notification:new" | "notification:read" | "conversation:newMessage"
   | "conversation:typing" | "conversation:read" | "offer:counter"
   | "offer:accepted" | "offer:rejected" | "purchaseOrder:created"
-  | "purchaseOrder:accepted" | "purchaseOrder:rejected"
+  | "wallet:updated"
+  | "purchaseOrder:accepted" | "purchaseOrder:rejected" | "purchaseOrder:preparing"
+  | "purchaseOrder:cancellationRequested" | "purchaseOrder:cancelled" | "purchaseOrder:cancellationRejected" | "purchaseOrder:refundUpdated"
   | "purchaseOrder:deliveryUpdated" | "purchaseOrder:paymentPrepared" | "purchaseOrder:paymentCreated" | "purchaseOrder:paymentReceived"
   | "purchaseOrder:receiptUploaded" | "dashboard:update";
 

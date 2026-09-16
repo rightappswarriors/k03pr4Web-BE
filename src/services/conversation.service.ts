@@ -713,6 +713,8 @@ export class ConversationService {
           message: `You have a new message regarding RFQ #${rfq.rfqNumber}.`,
           type: "NEW_TRANSACTION",
           conversationId,
+          referenceType: "RFQ",
+          referenceId: rfq.id,
           isRead: false,
         },
       });
@@ -817,6 +819,8 @@ export class ConversationService {
             message: `A new offer was sent for RFQ #${rfq.rfqNumber}.`,
             type: "NEW_TRANSACTION",
             conversationId,
+            referenceType: "RFQ",
+            referenceId: rfq.id,
           },
         });
       }
@@ -959,6 +963,8 @@ export class ConversationService {
             message: `Buyer accepted your offer for RFQ #${rfq.rfqNumber}. Waiting for your confirmation.`,
             type: "NEGOTIATION_ACCEPTED",
             conversationId,
+            referenceType: "RFQ",
+            referenceId: rfq.id,
           },
         });
       }
@@ -1097,6 +1103,8 @@ export class ConversationService {
             message: `Your offer for RFQ #${rfq.rfqNumber} was declined.${data?.reason ? ` Reason: ${data.reason}` : ""}`,
             type: "NEW_TRANSACTION",
             conversationId,
+            referenceType: "RFQ",
+            referenceId: rfq.id,
           },
         });
       }

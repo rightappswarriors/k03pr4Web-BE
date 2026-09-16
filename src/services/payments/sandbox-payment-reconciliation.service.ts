@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PaymentGatewayProvider } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma.service';
 import { PaymentConfirmationService } from './payment-confirmation.service';
@@ -11,21 +11,26 @@ export class SandboxPaymentReconciliationService {
     private readonly confirmation: PaymentConfirmationService,
   ) {}
 
-  async confirm(transactionId: string, reason: string) {
+  async confirm(transactionId: string, reason: string, actor: { userId?: number; orgId?: number }) {
     if (process.env.NODE_ENV === 'production' || process.env.SANDBOX_SETTLEMENT_MODE !== 'true') {
       throw new ForbiddenException('Sandbox payment settlement is disabled.');
     }
-    if (!reason.trim()) throw new BadRequestException('A sandbox confirmation reason is required.');
+    if (typeof reason !== 'string' || !reason.trim()) throw new BadRequestException('A sandbox confirmation reason is required.');
+
+    if (!Number.isInteger(actor.userId) || Number(actor.userId) < 1 || !Number.isInteger(actor.orgId) || Number(actor.orgId) < 0) {
+      throw new BadRequestException('Authenticated sandbox administrator identity is required.');
+    }
 
     const payment = await this.prisma.paymentTransaction.findUniqueOrThrow({ where: { id: transactionId } });
-    if (payment.status === 'SUCCEEDED') return { payment, alreadyConfirmed: true };
-    if (payment.provider !== PaymentGatewayProvider.PAYMAYA || payment.environment !== 'SANDBOX' || payment.status !== 'RECONCILIATION_REQUIRED') {
+    if (payment.provider !== PaymentGatewayProvider.PAYMAYA || payment.environment !== 'SANDBOX') {
       throw new BadRequestException('Only reconciliation-required Maya sandbox payments may be confirmed.');
     }
 
     const snapshot = (payment.feeSnapshot ?? {}) as Record<string, any>;
     const evidence = snapshot.sandboxWebhookEvidence as Record<string, unknown> | undefined;
+    const verification = snapshot.providerVerification as Record<string, unknown> | undefined;
     const amount = Number(evidence?.amount);
+    const occurredAt = new Date(String(evidence?.receivedAt));
     if (
       !evidence ||
       evidence.status !== 'PAYMENT_SUCCESS' ||
@@ -35,10 +40,24 @@ export class SandboxPaymentReconciliationService {
       !payment.gatewayReference ||
       !Number.isFinite(amount) ||
       Math.abs(amount - payment.amount) > 0.009 ||
-      evidence.currency !== 'PHP'
+      !Number.isFinite(occurredAt.getTime()) ||
+      evidence.currency !== 'PHP' ||
+      verification?.result !== 'UNAVAILABLE' ||
+      verification?.providerCode !== 'K007'
     ) {
       throw new BadRequestException('Persisted Maya sandbox webhook evidence does not match this payment transaction.');
     }
+    if (payment.status === 'SUCCEEDED') {
+      if (!(snapshot.sandboxReconciliationAudit as Record<string, unknown> | undefined)?.confirmed) {
+        throw new BadRequestException('This payment was not confirmed through sandbox reconciliation.');
+      }
+      return { payment, alreadyConfirmed: true };
+    }
+    if (payment.status !== 'RECONCILIATION_REQUIRED') {
+      throw new BadRequestException('Only reconciliation-required Maya sandbox payments may be confirmed.');
+    }
+
+    const confirmedAt = new Date().toISOString();
 
     const event: NormalizedProviderEvent = {
       provider: PaymentGatewayProvider.PAYMAYA,
@@ -47,8 +66,33 @@ export class SandboxPaymentReconciliationService {
       status: 'SUCCEEDED',
       amount,
       currency: 'PHP',
-      occurredAt: new Date(String(evidence.receivedAt)),
-      metadata: { sandboxReconciliation: true, reason: reason.trim() },
+      occurredAt,
+      metadata: {
+        sandboxReconciliation: true,
+        sandboxReconciliationAudit: {
+          confirmed: true,
+          actorUserId: Number(actor.userId),
+          actorOrgId: Number(actor.orgId),
+          reason: reason.trim(),
+          confirmedAt,
+          paymentTransactionId: payment.id,
+          environment: payment.environment,
+          evidence: {
+            status: evidence.status,
+            isPaid: evidence.isPaid,
+            requestReferenceNumber: evidence.requestReferenceNumber,
+            providerReference: evidence.providerReference,
+            amount,
+            currency: evidence.currency,
+            receivedAt: evidence.receivedAt,
+            providerVerification: {
+              result: verification.result,
+              httpStatus: verification.httpStatus,
+              providerCode: verification.providerCode,
+            },
+          },
+        },
+      },
     };
     return { payment: await this.confirmation.confirmPaymentTransaction(payment.id, event), alreadyConfirmed: false };
   }
@@ -85,7 +129,7 @@ export class SandboxPaymentReconciliationService {
   assertInternalAccess(key: string | undefined) {
     const expected = process.env.SANDBOX_SETTLEMENT_SERVICE_KEY;
     if (!expected || !key || key !== expected) {
-      throw new ServiceUnavailableException('Sandbox reconciliation service access is not configured.');
+      throw new UnauthorizedException('Sandbox reconciliation service credential was rejected.');
     }
   }
 }

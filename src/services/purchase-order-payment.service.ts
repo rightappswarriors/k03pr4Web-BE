@@ -7,6 +7,11 @@ import { PaymentGatewayProvider } from '../generated/prisma/client';
 
 const OPEN_ATTEMPT_STATUSES = ['PENDING', 'AWAITING_PAYMENT', 'PROCESSING', 'RECONCILIATION_REQUIRED'] as const;
 const TERMINAL_ATTEMPT_STATUSES = ['FAILED', 'CANCELLED', 'EXPIRED'] as const;
+const CHECKOUT_SESSION_LIFETIME_MS = 60 * 60 * 1000;
+const CHECKOUT_REUSE_WINDOW_MS = Math.min(
+  CHECKOUT_SESSION_LIFETIME_MS,
+  Math.max(0, Number(process.env.MAYA_CHECKOUT_REUSE_MINUTES ?? 55) * 60 * 1000),
+);
 
 /**
  * Owns provider payment attempts for a Purchase Order.  PO.paymentStatus means
@@ -27,6 +32,7 @@ export class PurchaseOrderPaymentService {
 
     try {
       const outcome = await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "PurchaseOrder" WHERE id = ${poId} FOR UPDATE`;
         const po = await tx.purchaseOrder.findUnique({
           where: { id: poId },
           include: { POLineItem: { include: { SupplierItem: { select: { categoryId: true, unit: true } } } } },
@@ -37,6 +43,14 @@ export class PurchaseOrderPaymentService {
         if (po.paymentStatus === 'PAID') throw new BadRequestException({ error: 'This purchase order already has a confirmed payment.' });
         if (po.supplierConfirmation !== 'CONFIRMED' || po.paymentStatus !== 'PREPARING') {
           throw new BadRequestException({ error: 'Prepare payment for an accepted purchase order first.' });
+        }
+        if (po.source === 'DIRECT_ORDER' && po.deliveryDateAgreementStatus !== 'AGREED') {
+          const existingAttempt = await tx.paymentTransaction.findFirst({
+            where: { relatedType: 'PURCHASE_ORDER', relatedId: po.id, status: { in: [...OPEN_ATTEMPT_STATUSES] }, deletedAt: null },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (existingAttempt) return { attempt: existingAttempt, created: false };
+          throw new BadRequestException({ error: 'Agree on the delivery schedule with the Supplier before starting payment.' });
         }
         const confirmed = await tx.paymentTransaction.findFirst({
           where: { relatedType: 'PURCHASE_ORDER', relatedId: po.id, status: 'SUCCEEDED', deletedAt: null },
@@ -106,7 +120,13 @@ export class PurchaseOrderPaymentService {
       created = false;
     }
 
-    if (!created) return this.reconcileExistingAttempt(attempt, agentId, poId);
+    if (!created) {
+      const reconciled: any = await this.reconcileExistingAttempt(attempt, agentId, poId);
+      if (reconciled.canRetry && reconciled.transactionStatus !== 'RECONCILIATION_REQUIRED') {
+        return this.createForPurchaseOrder(poId, agentId);
+      }
+      return reconciled;
+    }
     return this.createCheckoutForAttempt(attempt, agentId, poId);
   }
 
@@ -146,12 +166,14 @@ export class PurchaseOrderPaymentService {
     }
 
     const provider = this.providers.resolve(attempt.provider);
+    let observedProviderSuccess = false;
     try {
       const verified = await provider.getPaymentStatus(attempt.gatewayReference);
       if (verified.providerReference !== attempt.gatewayReference) {
         return this.attemptResult(attempt, { reconciliationRequired: true, message: 'The existing Maya payment reference requires reconciliation.' });
       }
       if (verified.status === 'SUCCEEDED') {
+        observedProviderSuccess = true;
         const confirmed = await this.confirmation.confirmPaymentTransaction(attempt.id, verified);
         return this.attemptResult(confirmed, { confirmed: true });
       }
@@ -167,21 +189,43 @@ export class PurchaseOrderPaymentService {
           message: 'Maya reported this payment as completed, but Kompra cannot independently verify it yet.',
         });
       }
-      const checkoutUrl = (attempt.feeSnapshot as Record<string, unknown> | null)?.checkoutUrl;
-      if (typeof checkoutUrl === 'string' && checkoutUrl) return this.attemptResult(attempt, { checkoutUrl, active: true });
-      return this.attemptResult(attempt, { reconciliationRequired: true, message: 'The active Maya payment session has no reusable checkout URL.' });
+      const session = this.checkoutSession(attempt);
+      if (session.reusable) return this.attemptResult(attempt, { checkoutUrl: session.checkoutUrl, checkoutReusable: true, checkoutExpiresAt: session.expiresAt?.toISOString() ?? null, active: true });
+      if (session.expired) {
+        const expired = await this.expireUnsafeCheckout(attempt);
+        return expired.status === 'SUCCEEDED'
+          ? this.attemptResult(expired, { confirmed: true })
+          : this.attemptResult(expired, { canRetry: true, checkoutReusable: false, message: 'The previous Maya checkout expired and will be replaced.' });
+      }
+      return this.attemptResult(attempt, { checkoutReusable: false, message: 'This checkout is near expiry and is not reusable. Retry after its one-hour session lifetime ends.' });
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         const diagnostic = (error as any)?.mayaDiagnostic;
         console.warn('[Payment attempt reconciliation unavailable]', { agentId, poId, transactionId: attempt.id, httpStatus: diagnostic?.httpStatus, providerCode: diagnostic?.providerCode });
       }
-      return this.attemptResult(attempt, { reconciliationRequired: true, message: 'The previous Maya payment attempt requires verified reconciliation before it can be reused or replaced.' });
+      if (observedProviderSuccess) {
+        return this.attemptResult(attempt, { reconciliationRequired: true, checkoutReusable: false, message: 'Maya reported a completed payment that requires reconciliation.' });
+      }
+      if (this.checkoutSession(attempt).expired) {
+        const expired = await this.expireUnsafeCheckout(attempt, true);
+        return expired.status === 'SUCCEEDED'
+          ? this.attemptResult(expired, { confirmed: true })
+          : this.attemptResult(expired, { canRetry: true, checkoutReusable: false, message: 'The previous checkout is no longer safely reusable and will be replaced.' });
+      }
+      return this.attemptResult(attempt, { reconciliationRequired: true, checkoutReusable: false, message: 'Maya verification is temporarily unavailable. No new checkout was created.' });
     }
   }
 
   async recordWebhookOutcome(attempt: any, event: any, verificationDiagnostic?: { providerCode?: string; httpStatus?: number }) {
     const current = await this.prisma.paymentTransaction.findUniqueOrThrow({ where: { id: attempt.id } });
-    if (current.status === 'SUCCEEDED' || (TERMINAL_ATTEMPT_STATUSES as readonly string[]).includes(current.status)) {
+    if (current.status === 'SUCCEEDED') {
+      return current;
+    }
+    if ((TERMINAL_ATTEMPT_STATUSES as readonly string[]).includes(current.status)) {
+      if (event.status === 'SUCCEEDED' && current.status === 'EXPIRED' && (current.feeSnapshot as any)?.checkoutTerminalSource === 'INTERNAL_PROVIDER_TTL') {
+        await this.prisma.paymentTransaction.updateMany({ where: { id: current.id, status: 'EXPIRED' }, data: { status: 'RECONCILIATION_REQUIRED', feeSnapshot: { ...(current.feeSnapshot as object ?? {}), lateSuccessEvidence: { eventId: event.eventId, receivedAt: event.occurredAt.toISOString(), amount: event.amount, currency: event.currency } } } });
+        return this.prisma.paymentTransaction.findUniqueOrThrow({ where: { id: current.id } });
+      }
       return current;
     }
     if ((TERMINAL_ATTEMPT_STATUSES as readonly string[]).includes(event.status)) {
@@ -287,15 +331,17 @@ export class PurchaseOrderPaymentService {
         cancelUrl: withTransactionId(process.env.MAYA_CANCEL_URL!),
       });
       const snapshot = attempt.feeSnapshot as Record<string, unknown> | null;
+      const checkoutCreatedAt = new Date();
+      const checkoutExpiresAt = new Date(checkoutCreatedAt.getTime() + CHECKOUT_SESSION_LIFETIME_MS);
       const updated = await this.prisma.paymentTransaction.update({
         where: { id: attempt.id },
         data: {
           gatewayReference: checkout.providerReference,
-          feeSnapshot: { ...(snapshot ?? {}), provider: PaymentGatewayProvider.PAYMAYA, checkoutUrl: checkout.checkoutUrl, providerMetadata: checkout.rawMetadata as any },
+          feeSnapshot: { ...(snapshot ?? {}), provider: PaymentGatewayProvider.PAYMAYA, checkoutUrl: checkout.checkoutUrl, checkoutCreatedAt: checkoutCreatedAt.toISOString(), checkoutExpiresAt: checkoutExpiresAt.toISOString(), checkoutApplication: 'KOMPRA_PH', providerMetadata: checkout.rawMetadata as any },
           status: 'PROCESSING',
         },
       });
-      return this.attemptResult(updated, { checkoutUrl: checkout.checkoutUrl, active: true });
+      return this.attemptResult(updated, { checkoutUrl: checkout.checkoutUrl, checkoutReusable: true, checkoutExpiresAt: checkoutExpiresAt.toISOString(), active: true });
     } catch (error) {
       await this.prisma.paymentTransaction.updateMany({
         where: { id: attempt.id, status: 'AWAITING_PAYMENT' },
@@ -312,8 +358,35 @@ export class PurchaseOrderPaymentService {
       transactionStatus: attempt.status,
       provider: attempt.provider,
       amount: attempt.amount,
+      checkoutReusable: false,
+      checkoutExpiresAt: this.checkoutSession(attempt).expiresAt?.toISOString() ?? null,
       ...additional,
     };
+  }
+
+  private checkoutSession(attempt: any) {
+    const snapshot = attempt.feeSnapshot as Record<string, unknown> | null;
+    const checkoutUrl = typeof snapshot?.checkoutUrl === 'string' ? snapshot.checkoutUrl : null;
+    const createdAt = typeof snapshot?.checkoutCreatedAt === 'string' ? new Date(snapshot.checkoutCreatedAt) : null;
+    const expiryBasis = createdAt ?? (attempt.updatedAt ? new Date(attempt.updatedAt) : null);
+    const expiresAt = typeof snapshot?.checkoutExpiresAt === 'string' ? new Date(snapshot.checkoutExpiresAt) : null;
+    const reusableUntil = createdAt && !Number.isNaN(createdAt.getTime())
+      ? Math.min(createdAt.getTime() + CHECKOUT_REUSE_WINDOW_MS, expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt.getTime() : Number.POSITIVE_INFINITY)
+      : 0;
+    return { checkoutUrl, expiresAt: expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : null, reusable: Boolean(checkoutUrl && reusableUntil > Date.now()), expired: Boolean(expiryBasis && !Number.isNaN(expiryBasis.getTime()) && expiryBasis.getTime() + CHECKOUT_SESSION_LIFETIME_MS <= Date.now()) };
+  }
+
+  private async expireUnsafeCheckout(attempt: any, verificationUnavailable = false) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "PurchaseOrder" WHERE id = ${attempt.relatedId} FOR UPDATE`;
+      const succeeded = await tx.paymentTransaction.findFirst({ where: { relatedType: 'PURCHASE_ORDER', relatedId: attempt.relatedId, status: 'SUCCEEDED', deletedAt: null } });
+      if (succeeded) return succeeded;
+      await tx.paymentTransaction.updateMany({
+        where: { id: attempt.id, status: { in: ['PENDING', 'AWAITING_PAYMENT', 'PROCESSING'] } },
+        data: { status: 'EXPIRED', feeSnapshot: { ...(attempt.feeSnapshot as object ?? {}), checkoutSupersededAt: new Date().toISOString(), checkoutTerminalSource: 'INTERNAL_PROVIDER_TTL', verificationUnavailable } },
+      });
+      return tx.paymentTransaction.findUniqueOrThrow({ where: { id: attempt.id } });
+    }, { isolationLevel: 'Serializable' });
   }
 
   private assertConsistentCommercialSnapshot(po: any) {

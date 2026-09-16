@@ -32,10 +32,13 @@ import { WholesaleService } from "./services/wholesale.service";
 import { PrismaService } from "./services/prisma.service";
 import { RealtimeGateway } from "./gateway/realtime.gateway";
 import { PurchaseOrderPaymentService } from "./services/purchase-order-payment.service";
+import { PurchaseOrderSettlementService } from "./services/purchase-order-settlement.service";
+import { SettlementWalletPostingService } from "./services/settlement-wallet-posting.service";
 import { MayaPaymentProvider } from './services/payments/maya-payment.provider';
 import { PaymentProviderRegistry } from './services/payments/payment-provider.registry';
 import { PaymentConfirmationService } from './services/payments/payment-confirmation.service';
 import { SandboxPaymentReconciliationService } from './services/payments/sandbox-payment-reconciliation.service';
+import { PurchaseOrderCancellationService } from './services/purchase-order-cancellation.service';
 
 @Module({
   imports: [
@@ -76,10 +79,13 @@ import { SandboxPaymentReconciliationService } from './services/payments/sandbox
     ConversationService,
     RfqNegotiationService,
     PurchaseOrderPaymentService,
+    PurchaseOrderSettlementService,
+    SettlementWalletPostingService,
     MayaPaymentProvider,
     PaymentProviderRegistry,
     PaymentConfirmationService,
     SandboxPaymentReconciliationService,
+    PurchaseOrderCancellationService,
     WholesaleService,
     PrismaService,
     RealtimeGateway,

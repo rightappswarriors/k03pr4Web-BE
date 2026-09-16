@@ -523,6 +523,18 @@ export class AgentController {
     return { success: true, data: await this.negotiationService.preparePayment(id, req.agent.id, data) };
   }
 
+  @Post("pos/:id/confirm-receipt")
+  @UseGuards(AgentAuthGuard)
+  async confirmPurchaseOrderReceipt(@Req() req: any, @Param("id") id: string) {
+    return { success: true, data: await this.negotiationService.confirmPurchaseOrderReceipt(id, req.agent.id) };
+  }
+
+  @Post("pos/:id/delivery-date/accept")
+  @UseGuards(AgentAuthGuard)
+  async acceptSupplierDeliveryDate(@Req() req: any, @Param("id") id: string) {
+    return { success: true, data: await this.negotiationService.acceptSupplierDeliveryDate(id, req.agent.id) };
+  }
+
   @Post("pos/:id/payments")
   @UseGuards(AgentAuthGuard)
   async beginPayment(@Req() req: any, @Param("id") id: string) {

@@ -11,7 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma:pull": "prisma db pull",
     "prisma:generate": "prisma generate",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "reconcile:platform-fees": "ts-node --transpile-only scripts/reconcile-platform-fees.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.9",

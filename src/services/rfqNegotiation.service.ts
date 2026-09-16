@@ -11,6 +11,8 @@ import { logDevCtx } from "../lib/logDev";
 import { RealtimeGateway } from "../gateway/realtime.gateway";
 import { SendMessageDto, ConversationMessage } from "./conversation.service";
 import { PurchaseOrderPaymentService } from "./purchase-order-payment.service";
+import { PurchaseOrderSettlementService } from "./purchase-order-settlement.service";
+import { SettlementWalletPostingService } from "./settlement-wallet-posting.service";
 
 // ============================================
 // DTOs
@@ -153,7 +155,13 @@ export type PoDetail = {
   supplierConfirmation: "REVIEW_REQUIRED" | "CONFIRMED" | "DECLINED";
   supplierConfirmedAt?: Date | null;
   supplierExpectedDeliveryAt?: Date | null;
+  deliveryDateAgreementStatus?: "PENDING_SUPPLIER" | "PENDING_BUYER" | "AGREED";
+  deliveryDateAgreedAt?: Date | null;
+  deliveryDateResponseDeadlineAt?: Date | null;
+  deliveryDateProposalVersion?: number;
+  deliveryDateAgreementMethod?: "BUYER_ACCEPTED" | "SUPPLIER_ACCEPTED" | "AUTO_BUYER_TIMEOUT" | null;
   supplierNote?: string | null;
+  preparingAt?: Date | null;
   paymentStatus: string;
   rejectionReason?: string | null;
   paymentMethod?: string | null;
@@ -285,6 +293,8 @@ export class RfqNegotiationService {
     private readonly rfqService: RfqService,
     private readonly realtime: RealtimeGateway,
     private readonly purchaseOrderPayment: PurchaseOrderPaymentService,
+    private readonly purchaseOrderSettlement: PurchaseOrderSettlementService,
+    private readonly settlementWalletPosting: SettlementWalletPostingService,
     private readonly notificationService: NotificationService,
   ) {}
 
@@ -483,6 +493,8 @@ export class RfqNegotiationService {
           type: "NEW_TRANSACTION",
           conversationId,
           isRead: false,
+          referenceType: "RFQ",
+          referenceId: rfq.id,
         },
       });
 
@@ -603,6 +615,8 @@ export class RfqNegotiationService {
           type: "NEW_TRANSACTION",
           conversationId: rfq.Conversation!.id,
           isRead: false,
+          referenceType: "RFQ",
+          referenceId: rfq.id,
         },
       });
 
@@ -780,6 +794,8 @@ export class RfqNegotiationService {
           type: "NEGOTIATION_ACCEPTED",
           conversationId,
           isRead: false,
+          referenceType: "RFQ",
+          referenceId: rfq.id,
         },
       });
 
@@ -945,6 +961,8 @@ export class RfqNegotiationService {
           type: "NEW_TRANSACTION",
           conversationId,
           isRead: false,
+          referenceType: "RFQ",
+          referenceId: rfq.id,
         },
       });
 
@@ -1169,8 +1187,7 @@ export class RfqNegotiationService {
           supplierOrgId,
           status: "PENDING",
           source: "RFQ",
-          supplierConfirmation: "CONFIRMED",
-          supplierConfirmedAt: new Date(),
+          supplierConfirmation: "REVIEW_REQUIRED",
           notes: data.notes ?? undefined,
           requestedDate: new Date(),
           subtotalAmount,
@@ -1329,6 +1346,8 @@ export class RfqNegotiationService {
         type: "PURCHASE_ORDER_CREATED",
         conversationId: poConversationId,
         isRead: false,
+        referenceType: "PURCHASE_ORDER",
+        referenceId: result.po.id,
       },
     });
 
@@ -1342,6 +1361,8 @@ export class RfqNegotiationService {
         type: "PURCHASE_ORDER_CREATED",
         conversationId: poConversationId,
         isRead: false,
+        referenceType: "PURCHASE_ORDER",
+        referenceId: result.po.id,
       },
     });
 
@@ -1455,7 +1476,7 @@ export class RfqNegotiationService {
     return conversation.id;
   }
 
-  private async postPOEvent(po: { id: string; poNumber: string; supplierOrgId: number; conversationId: string | null; agentId: string | null }, type: "PO_ACCEPTED" | "PO_REJECTED" | "PAYMENT_UPDATE", message: string, metadata: Record<string, unknown>) {
+  private async postPOEvent(po: { id: string; poNumber: string; supplierOrgId: number; conversationId: string | null; agentId: string | null }, type: "PO_ACCEPTED" | "PO_REJECTED" | "PAYMENT_UPDATE" | "ORDER_RECEIVED" | "DELIVERY_SCHEDULED", message: string, metadata: Record<string, unknown>) {
     const conversationId = await this.ensurePOConversation(po);
     await this.prisma.conversationMessage.create({ data: { conversationId, senderAgentId: po.agentId ?? undefined, message, type, metadata: metadata as any } });
     this.realtime.emitToConversation(conversationId, "conversation:newMessage", { conversationId, senderRole: "AGENT", senderId: po.agentId, message, type, metadata });
@@ -1482,15 +1503,41 @@ export class RfqNegotiationService {
     return updated;
   }
 
+  async confirmPurchaseOrderReceipt(poId: string, agentId: string) {
+    const po = await this.getOwnedPO(poId, agentId);
+    if (po.status === 'COMPLETED') throw new BadRequestException({ error: 'This order has already been completed.' });
+    if (po.status !== 'DELIVERED') throw new BadRequestException({ error: 'Only delivered purchase orders can be confirmed as received.' });
+    const confirmedAt = new Date();
+    const transitioned = await this.prisma.purchaseOrder.updateMany({ where: { id: po.id, status: 'DELIVERED' }, data: { status: 'COMPLETED', buyerConfirmedAt: confirmedAt } });
+    if (transitioned.count !== 1) throw new BadRequestException({ error: 'This order can no longer be confirmed as received.' });
+    const updated = await this.prisma.purchaseOrder.findUniqueOrThrow({ where: { id: po.id } });
+    try {
+      const settlement = await this.purchaseOrderSettlement.settlePurchaseOrder(updated.id);
+      await this.settlementWalletPosting.postSettlementToWallet(settlement.id);
+    } catch (error) {
+      // Receipt confirmation is a fulfillment fact. A financial reconciliation
+      // must never put a physically completed order back into delivery.
+      console.error('[Purchase order settlement requires reconciliation]', {
+        purchaseOrderId: updated.id,
+        message: error instanceof Error ? error.message : 'Unknown settlement error',
+      });
+    }
+    const conversationId = await this.postPOEvent(updated, 'ORDER_RECEIVED', 'Buyer Confirmed Receipt', { event: 'ORDER_RECEIVED', poId: updated.id, poNumber: updated.poNumber, buyerConfirmedAt: confirmedAt.toISOString() });
+    this.realtime.emitToOrganization(updated.supplierOrgId, 'purchaseOrder:completed' as any, { poId: updated.id, poNumber: updated.poNumber, buyerConfirmedAt: confirmedAt.toISOString(), conversationId });
+    return updated;
+  }
+
   async preparePayment(poId: string, agentId: string, data: { paymentMethod: "CARD" | "CASH" | "E_WALLET"; paymentReference?: string; delivery: { scheduledDate: string; address: string; latitude?: number | null; longitude?: number | null; notes?: string | null; recipientName?: string | null; recipientContact?: string | null } }) {
     const po = await this.getOwnedPO(poId, agentId);
     if (po.supplierConfirmation !== "CONFIRMED") throw new BadRequestException({ error: po.supplierConfirmation === "DECLINED" ? "This purchase order was declined by the supplier." : "Awaiting supplier confirmation before payment can be prepared." });
+    if (!po.supplierExpectedDeliveryAt) throw new BadRequestException({ error: "The supplier must commit an expected delivery date before payment can be prepared." });
     if (po.paymentStatus !== "PENDING" && po.paymentStatus !== "PREPARING") throw new BadRequestException({ error: "Payment preparation is no longer available for this purchase order." });
     if (!data.delivery?.address?.trim()) throw new BadRequestException({ error: "A delivery address is required before payment can be prepared." });
     const scheduledDate = new Date(data.delivery.scheduledDate);
     if (Number.isNaN(scheduledDate.getTime())) throw new BadRequestException({ error: "Expected delivery date is invalid." });
     const today = new Date(); today.setHours(0, 0, 0, 0);
     if (scheduledDate < today) throw new BadRequestException({ error: "Expected delivery date cannot be in the past." });
+    if (scheduledDate.toISOString().slice(0, 10) !== po.supplierExpectedDeliveryAt.toISOString().slice(0, 10)) throw new BadRequestException({ error: "Payment preparation cannot change the supplier's committed delivery date." });
     const hasLatitude = data.delivery.latitude !== undefined && data.delivery.latitude !== null;
     const hasLongitude = data.delivery.longitude !== undefined && data.delivery.longitude !== null;
     if (hasLatitude !== hasLongitude || (hasLatitude && (Math.abs(data.delivery.latitude!) > 90 || Math.abs(data.delivery.longitude!) > 180))) throw new BadRequestException({ error: "Delivery coordinates are invalid." });
@@ -1567,53 +1614,100 @@ export class RfqNegotiationService {
       throw new ForbiddenException({ error: "You do not have access to this PO." });
     }
 
-    // Update or create delivery
-    if (po.Delivery) {
-      await this.prisma.delivery.update({
-        where: { id: po.Delivery.id },
-        data: {
-          scheduledDate: data.scheduledDate ? new Date(data.scheduledDate) : po.Delivery.scheduledDate,
-          driverName: data.driverName ?? po.Delivery.driverName,
-          driverContact: data.driverContact ?? po.Delivery.driverContact,
-          latitude: data.latitude ?? po.Delivery.latitude,
-          longitude: data.longitude ?? po.Delivery.longitude,
-          address: data.address ?? po.Delivery.address,
-          notes: data.notes ?? po.Delivery.notes,
-          recipientName: data.recipientName ?? po.Delivery.recipientName,
-          recipientContact: data.recipientContact ?? po.Delivery.recipientContact,
-          updatedAt: new Date(),
-        },
-      });
-    } else {
-      await this.prisma.delivery.create({
-        data: {
-          id: `del_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          poId: po.id,
-          scheduledDate: data.scheduledDate ? new Date(data.scheduledDate) : new Date(),
-          driverName: data.driverName ?? undefined,
-          driverContact: data.driverContact ?? undefined,
-          latitude: data.latitude ?? undefined,
-          longitude: data.longitude ?? undefined,
-          address: data.address ?? undefined,
-          notes: data.notes ?? undefined,
-          recipientName: data.recipientName ?? undefined,
-          recipientContact: data.recipientContact ?? undefined,
-          status: "SCHEDULED",
-          updatedAt: new Date(),
-        },
-      });
+    let requestedDeliveryDate: Date | undefined;
+    if (data.scheduledDate) {
+      requestedDeliveryDate = new Date(data.scheduledDate);
+      if (Number.isNaN(requestedDeliveryDate.getTime())) {
+        throw new BadRequestException({ error: "Requested delivery date is invalid." });
+      }
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (requestedDeliveryDate < today) {
+        throw new BadRequestException({ error: "Requested delivery date cannot be in the past." });
+      }
+      if (po.supplierConfirmation !== "REVIEW_REQUIRED" && po.status !== "PREPARING") {
+        throw new BadRequestException({ error: "Delivery dates cannot be changed after preparation has finished." });
+      }
     }
 
-    // Emit realtime event to both the supplier and the agent's org
+    await this.prisma.$transaction(async (tx) => {
+      if (po.Delivery) {
+        await tx.delivery.update({
+          where: { id: po.Delivery.id },
+          data: {
+            scheduledDate: requestedDeliveryDate ?? po.Delivery.scheduledDate,
+            driverName: data.driverName ?? po.Delivery.driverName,
+            driverContact: data.driverContact ?? po.Delivery.driverContact,
+            latitude: data.latitude ?? po.Delivery.latitude,
+            longitude: data.longitude ?? po.Delivery.longitude,
+            address: data.address ?? po.Delivery.address,
+            notes: data.notes ?? po.Delivery.notes,
+            recipientName: data.recipientName ?? po.Delivery.recipientName,
+            recipientContact: data.recipientContact ?? po.Delivery.recipientContact,
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        await tx.delivery.create({
+          data: {
+            id: `del_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            poId: po.id,
+            scheduledDate: requestedDeliveryDate ?? new Date(),
+            driverName: data.driverName ?? undefined,
+            driverContact: data.driverContact ?? undefined,
+            latitude: data.latitude ?? undefined,
+            longitude: data.longitude ?? undefined,
+            address: data.address ?? undefined,
+            notes: data.notes ?? undefined,
+            recipientName: data.recipientName ?? undefined,
+            recipientContact: data.recipientContact ?? undefined,
+            status: "SCHEDULED",
+            updatedAt: new Date(),
+          },
+        });
+      }
+      if (requestedDeliveryDate) {
+        await tx.purchaseOrder.update({ where: { id: po.id }, data: { requestedDate: requestedDeliveryDate, deliveryDateAgreementStatus: "PENDING_SUPPLIER", deliveryDateAgreedAt: null, deliveryDateAgreementMethod: null, deliveryDateResponseDeadlineAt: null } });
+      }
+    });
+
+    if (requestedDeliveryDate) {
+      await this.postPOEvent(
+        po,
+        "DELIVERY_SCHEDULED",
+        `Buyer requested delivery on ${requestedDeliveryDate.toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}.`,
+        {
+          event: "delivery_date_requested",
+          poId: po.id,
+          poNumber: po.poNumber,
+          requestedDate: requestedDeliveryDate.toISOString(),
+          deliveryDateAgreementStatus: "PENDING_SUPPLIER",
+        },
+      );
+    }
+
+    // Notify the supplier so its Portal refreshes the authoritative PO data.
     this.realtime.emitToOrganization(po.supplierOrgId, "purchaseOrder:deliveryUpdated" as any, {
       poId: po.id,
       poNumber: po.poNumber,
+      requestedDate: requestedDeliveryDate?.toISOString(),
       latitude: data.latitude,
       longitude: data.longitude,
       address: data.address,
     });
 
     return { success: true, message: "Delivery details updated successfully." };
+  }
+
+  async acceptSupplierDeliveryDate(poId: string, agentId: string) {
+    const po = await this.getOwnedPO(poId, agentId);
+    if (po.status !== 'PREPARING' || po.deliveryDateAgreementStatus !== 'PENDING_BUYER' || !po.supplierExpectedDeliveryAt) {
+      throw new BadRequestException({ error: 'There is no supplier delivery-date proposal awaiting your confirmation.' });
+    }
+    const agreedAt = new Date();
+    const updated = await this.prisma.purchaseOrder.update({ where: { id: po.id }, data: { deliveryDateAgreementStatus: 'AGREED', deliveryDateAgreedAt: agreedAt, deliveryDateAgreementMethod: 'BUYER_ACCEPTED', deliveryDateResponseDeadlineAt: null } });
+    this.realtime.emitToOrganization(updated.supplierOrgId, 'purchaseOrder:deliveryDateAgreed' as any, { poId: updated.id, poNumber: updated.poNumber, deliveryDate: updated.supplierExpectedDeliveryAt, agreedAt: agreedAt.toISOString() });
+    return updated;
   }
 
   // ============================================
@@ -1642,7 +1736,10 @@ export class RfqNegotiationService {
         supplierConfirmation: po.supplierConfirmation,
         supplierConfirmedAt: po.supplierConfirmedAt,
         supplierExpectedDeliveryAt: po.supplierExpectedDeliveryAt,
+        deliveryDateAgreementStatus: po.deliveryDateAgreementStatus,
+        deliveryDateAgreedAt: po.deliveryDateAgreedAt,
         supplierNote: po.supplierNote,
+        preparingAt: po.preparingAt,
         paymentStatus: po.paymentStatus,
         subtotalAmount: po.subtotalAmount,
         extraCharges: normalizeExtraCharges(po.extraCharges),
@@ -1782,7 +1879,10 @@ export class RfqNegotiationService {
       supplierConfirmation: po.supplierConfirmation,
       supplierConfirmedAt: po.supplierConfirmedAt,
       supplierExpectedDeliveryAt: po.supplierExpectedDeliveryAt,
+      deliveryDateAgreementStatus: po.deliveryDateAgreementStatus,
+      deliveryDateAgreedAt: po.deliveryDateAgreedAt,
       supplierNote: po.supplierNote,
+      preparingAt: po.preparingAt,
       paymentStatus: po.paymentStatus,
       rejectionReason: po.rejectionReason,
       paymentMethod: po.paymentMethod,

@@ -1,13 +1,30 @@
 // wholesale.service.ts
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "./prisma.service";
-import { CustomerAuthService } from "./customer-auth.service";
+
+type PriceQuoteResult = {
+  unitPrice: number;
+  subtotal: number;
+  tierApplied: {
+    id: string;
+    minQty: number;
+    maxQty?: number;
+    price: number;
+    currency: string;
+  } | null;
+  variant?: {
+    id: string;
+    sku: string | null;
+    name: string;
+    availableQty: number;
+  };
+  moq?: number;
+};
 
 @Injectable()
 export class WholesaleService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly customers: CustomerAuthService,
   ) { }
 
   private readonly productInclude = {
@@ -391,7 +408,7 @@ export class WholesaleService {
     return null;
   }
 
-  async priceQuote(id: string, body: { quantity: number; variantId?: string }) {
+  async priceQuote(id: string, body: { quantity: number; variantId?: string }): Promise<PriceQuoteResult> {
     const { quantity, variantId } = body;
 
     const item = await this.prisma.supplierItem.findUnique({
@@ -406,26 +423,80 @@ export class WholesaleService {
       throw new NotFoundException({ error: "Supplier item not found" });
     }
 
-    // If variant selected: use variant's flat price, ignore tiers
+    // If variant selected: variant is authoritative for identity/inventory,
+    // and pricing priority is: variant's own tier → variant's own price →
+    // parent item's tier → parent item's base price. Parent pricing is a
+    // fallback for when the variant has no pricing of its own — it never
+    // overrides a variant that does.
     if (variantId) {
       const variant = await this.prisma.supplierItemVariant.findUnique({
         where: { id: variantId, deletedAt: null },
+        include: {
+          PriceTier: { where: { deletedAt: null }, orderBy: { minQty: "asc" } },
+        },
       });
 
       if (!variant) {
         throw new NotFoundException({ error: "Variant not found" });
       }
+      if (variant.supplierItemId !== id) {
+        throw new BadRequestException({ error: "Variant does not belong to this product" });
+      }
       if (!variant.isActive) {
         throw new BadRequestException({ error: "Variant is not available" });
+      }
+      if (quantity < item.moq) {
+        throw new BadRequestException({ error: `Minimum order quantity is ${item.moq}` });
       }
       if (variant.availableQty < quantity) {
         throw new BadRequestException({ error: `Only ${variant.availableQty} units available for this variant` });
       }
 
+      // Step 1: variant's own tiers
+      const variantPriceTiers = variant.PriceTier.map((t) => ({
+        minQty: t.minQty,
+        maxQty: t.maxQty ?? null,
+        price: t.price,
+      }));
+      const variantTierApplied = this.computeBracketPrice(quantity, variantPriceTiers);
+
+      // Step 3: parent's own tiers (item.PriceTier already only includes
+      // item-level rows since it's queried via SupplierItem's own relation,
+      // which is unaffected by the new variant-scoped rows)
+      const parentPriceTiers = item.PriceTier.map((t) => ({
+        minQty: t.minQty,
+        maxQty: t.maxQty ?? null,
+        price: t.price,
+      }));
+      const parentTierApplied = this.computeBracketPrice(quantity, parentPriceTiers);
+
+      // Priority: variant tier → variant.price → parent tier → parent base price
+      const tierApplied = variantTierApplied ?? parentTierApplied;
+      const unitPrice =
+        variantTierApplied?.price ??
+        (variant.price > 0 ? variant.price : undefined) ??
+        parentTierApplied?.price ??
+        item.unitPrice;
+
       return {
-        unitPrice: variant.price,
-        subtotal: variant.price * quantity,
-        tierApplied: null,
+        unitPrice,
+        subtotal: unitPrice * quantity,
+        tierApplied: tierApplied
+          ? {
+            id: tierApplied.minQty.toString(),
+            minQty: tierApplied.minQty,
+            maxQty: tierApplied.maxQty ?? undefined,
+            price: tierApplied.price,
+            currency: "PHP",
+          }
+          : null,
+        variant: {
+          id: variant.id,
+          sku: variant.sku,
+          name: variant.name,
+          availableQty: variant.availableQty,
+        },
+        moq: item.moq,
       };
     }
 
@@ -470,34 +541,273 @@ export class WholesaleService {
       },
     };
   }
-
-  /**
-   * Add to wholesale cart - stores pending order for later checkout.
-   * Uses separate wholesale cart tables to avoid mixing with retail cart.
-   * Price is computed server-side using the same logic as price-quote.
+    /**
+   * Add to wholesale cart — creates the agent's cart if needed, then
+   * upserts a cart line for this exact item+variant combination (per the
+   * @@unique constraint on [cartId, supplierItemId, supplierItemVariantId]).
+   * Adding the same item+variant again increments quantity rather than
+   * duplicating the line.
    */
-  async addToCart(authorization: string | undefined, body: {
+  async addToCart(agent: { id: string; organizationId: number | null }, body: {
     supplierItemId: string;
     variantId?: string;
     quantity: number;
   }) {
-    // Note: In a full implementation, this would create a WholesaleCartItem record.
-    // For now, we simulate success and return the computed pricing.
-    // The frontend should call this after price-quote to ensure price consistency.
     const quote = await this.priceQuote(body.supplierItemId, {
       quantity: body.quantity,
       variantId: body.variantId,
     });
 
-    // TODO: Create WholesaleCart/WholesaleCartItem records here when schema is added
-    // For now, return the pricing as confirmation
-    return {
-      success: true,
-      supplierItemId: body.supplierItemId,
-      variantId: body.variantId,
-      quantity: body.quantity,
+    const item = await this.prisma.supplierItem.findUnique({
+      where: { id: body.supplierItemId, deletedAt: null, isActive: true },
+      include: { SupplierCatalog: true },
+    });
+    if (!item) {
+      throw new NotFoundException({ error: "Supplier item not found" });
+    }
+    const supplierOrgId = item.SupplierCatalog.organizationId;
+
+    const cart = await this.prisma.wholesaleCart.upsert({
+      where: { agentId: agent.id },
+      create: { agentId: agent.id },
+      update: {},
+    });
+
+    const existingLine = await this.prisma.wholesaleCartLine.findFirst({
+      where: {
+        cartId: cart.id,
+        supplierItemId: body.supplierItemId,
+        supplierItemVariantId: body.variantId ?? null,
+      },
+    });
+
+    const lineData = {
+      itemName: item.name,
+      itemSku: item.sku,
+      variantName: quote.variant?.name ?? null,
+      variantSku: quote.variant?.sku ?? null,
+      unit: item.unit,
       unitPrice: quote.unitPrice,
-      subtotal: quote.subtotal,
+      tierMinQty: quote.tierApplied?.minQty ?? null,
+      tierMaxQty: quote.tierApplied?.maxQty ?? null,
+      supplierOrgId,
+    };
+
+    if (existingLine) {
+      const newQty = existingLine.quantity + body.quantity;
+      await this.prisma.wholesaleCartLine.update({
+        where: { id: existingLine.id },
+        data: {
+          ...lineData,
+          quantity: newQty,
+          subtotal: quote.unitPrice * newQty,
+        },
+      });
+    } else {
+      await this.prisma.wholesaleCartLine.create({
+        data: {
+          cartId: cart.id,
+          supplierItemId: body.supplierItemId,
+          supplierItemVariantId: body.variantId ?? null,
+          quantity: body.quantity,
+          subtotal: quote.subtotal,
+          ...lineData,
+        },
+      });
+    }
+
+    return this.getCart(agent);
+  }
+
+  /**
+   * Fetch the agent's cart, grouped by supplier with per-supplier subtotals.
+   * Does NOT revalidate — see validateCart for that; this is the plain
+   * "what's in my cart" read used for display.
+   */
+  async getCart(agent: { id: string }) {
+    const cart = await this.prisma.wholesaleCart.findUnique({
+      where: { agentId: agent.id },
+      include: {
+        WholesaleCartLine: {
+          include: { Organization: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+
+    if (!cart) {
+      return { id: null, suppliers: [], total: 0 };
+    }
+
+    const bySupplier = new Map<number, { supplierId: number; supplierName: string; lines: any[]; subtotal: number }>();
+    for (const line of cart.WholesaleCartLine) {
+      const key = line.supplierOrgId;
+      if (!bySupplier.has(key)) {
+        bySupplier.set(key, {
+          supplierId: key,
+          supplierName: line.Organization.name,
+          lines: [],
+          subtotal: 0,
+        });
+      }
+      const group = bySupplier.get(key)!;
+      group.lines.push({
+        id: line.id,
+        supplierItemId: line.supplierItemId,
+        supplierItemVariantId: line.supplierItemVariantId,
+        itemName: line.itemName,
+        itemSku: line.itemSku,
+        variantName: line.variantName,
+        variantSku: line.variantSku,
+        unit: line.unit,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        tierMinQty: line.tierMinQty,
+        tierMaxQty: line.tierMaxQty,
+        subtotal: line.subtotal,
+      });
+      group.subtotal += line.subtotal;
+    }
+
+    const suppliers = Array.from(bySupplier.values());
+    const total = suppliers.reduce((sum, s) => sum + s.subtotal, 0);
+
+    return { id: cart.id, suppliers, total };
+  }
+
+  /**
+   * Update a single cart line's quantity, re-quoting price server-side
+   * (never trusting a client-supplied price) and updating the tier/subtotal
+   * snapshot to match.
+   */
+  async updateCartLine(agent: { id: string }, lineId: string, quantity: number) {
+    const cart = await this.prisma.wholesaleCart.findUnique({ where: { agentId: agent.id } });
+    if (!cart) {
+      throw new NotFoundException({ error: "Cart not found" });
+    }
+
+    const line = await this.prisma.wholesaleCartLine.findUnique({ where: { id: lineId } });
+    if (!line || line.cartId !== cart.id) {
+      throw new NotFoundException({ error: "Cart line not found" });
+    }
+
+    if (quantity <= 0) {
+      await this.prisma.wholesaleCartLine.delete({ where: { id: lineId } });
+      return this.getCart(agent);
+    }
+
+    const quote = await this.priceQuote(line.supplierItemId, {
+      quantity,
+      variantId: line.supplierItemVariantId ?? undefined,
+    });
+
+    await this.prisma.wholesaleCartLine.update({
+      where: { id: lineId },
+      data: {
+        quantity,
+        unitPrice: quote.unitPrice,
+        subtotal: quote.subtotal,
+        tierMinQty: quote.tierApplied?.minQty ?? null,
+        tierMaxQty: quote.tierApplied?.maxQty ?? null,
+      },
+    });
+
+    return this.getCart(agent);
+  }
+
+  /**
+   * Remove a single cart line.
+   */
+  async removeCartLine(agent: { id: string }, lineId: string) {
+    const cart = await this.prisma.wholesaleCart.findUnique({ where: { agentId: agent.id } });
+    if (!cart) {
+      throw new NotFoundException({ error: "Cart not found" });
+    }
+
+    const line = await this.prisma.wholesaleCartLine.findUnique({ where: { id: lineId } });
+    if (!line || line.cartId !== cart.id) {
+      throw new NotFoundException({ error: "Cart line not found" });
+    }
+
+    await this.prisma.wholesaleCartLine.delete({ where: { id: lineId } });
+    return this.getCart(agent);
+  }
+
+  /**
+   * Re-validate every line in the cart against current, live data —
+   * availability, MOQ, SKU, tier, supplier, and current price — returning
+   * per-line errors rather than throwing, so the cart UI can show exactly
+   * which lines need attention without losing the rest of the cart.
+   */
+  async validateCart(agent: { id: string }) {
+    const cart = await this.prisma.wholesaleCart.findUnique({
+      where: { agentId: agent.id },
+      include: { WholesaleCartLine: true },
+    });
+
+    if (!cart) {
+      return { id: null, suppliers: [], total: 0, valid: true };
+    }
+
+    const lineResults: Array<{
+      lineId: string;
+      valid: boolean;
+      error?: string;
+      current?: PriceQuoteResult;
+      priceChanged?: boolean;
+      previousUnitPrice?: number;
+      newUnitPrice?: number;
+    }> = [];
+
+    for (const line of cart.WholesaleCartLine) {
+      try {
+        const quote = await this.priceQuote(line.supplierItemId, {
+          quantity: line.quantity,
+          variantId: line.supplierItemVariantId ?? undefined,
+        });
+
+                const priceChanged = quote.unitPrice !== line.unitPrice || quote.subtotal !== line.subtotal;
+        const previousUnitPrice = line.unitPrice;
+
+        if (priceChanged) {
+          await this.prisma.wholesaleCartLine.update({
+            where: { id: line.id },
+            data: {
+              unitPrice: quote.unitPrice,
+              subtotal: quote.subtotal,
+              tierMinQty: quote.tierApplied?.minQty ?? null,
+              tierMaxQty: quote.tierApplied?.maxQty ?? null,
+            },
+          });
+        }
+
+        lineResults.push({
+          lineId: line.id,
+          valid: true,
+          current: quote,
+          ...(priceChanged && {
+            priceChanged: true,
+            error: `Price updated from ${previousUnitPrice} to ${quote.unitPrice} due to a tier or pricing change`,
+            previousUnitPrice,
+            newUnitPrice: quote.unitPrice,
+          }),
+        });
+      } catch (err: any) {
+        lineResults.push({
+          lineId: line.id,
+          valid: false,
+          error: err?.response?.error ?? err?.message ?? "This item is no longer available as configured",
+        });
+      }
+    }
+
+    const cartView = await this.getCart(agent);
+    const invalidLineIds = new Set(lineResults.filter((r) => !r.valid).map((r) => r.lineId));
+
+    return {
+      ...cartView,
+      valid: invalidLineIds.size === 0,
+      lineErrors: lineResults.filter((r) => !r.valid || r.priceChanged),
     };
   }
 
@@ -505,19 +815,12 @@ export class WholesaleService {
    * Start Order - creates a PurchaseOrder directly (fast path, skips cart).
    * Computes pricing server-side and creates PO + POLineItem.
    */
-  async startOrder(authorization: string | undefined, body: {
+  async startOrder(agent: { id: string; organizationId: number | null }, body: {
     supplierItemId: string;
     variantId?: string;
     quantity: number;
   }) {
-    const user = await this.customers.currentUser(authorization);
-    // Get user's organization (for wholesale buyers)
-    const userOrg = await this.prisma.user.findUnique({
-      where: { id: Number(user.id) },
-      select: { orgId: true },
-    });
-
-    if (!userOrg?.orgId) {
+    if (!agent.organizationId) {
       throw new BadRequestException({ error: "User must belong to an organization to place wholesale orders" });
     }
 
@@ -542,7 +845,7 @@ export class WholesaleService {
       data: {
         id: `po-${Date.now()}`,
         poNumber: `PO-${Math.floor(100000 + Math.random() * 900000)}`,
-        buyerOrgId: userOrg.orgId,
+        buyerOrgId: agent.organizationId,
         supplierOrgId,
         status: "PENDING",
         source: "DIRECT_ORDER",
@@ -553,15 +856,21 @@ export class WholesaleService {
       },
     });
 
-    // Create POLineItem
+    // Create POLineItem — snapshot the variant (if any) alongside the base item,
+    // mirroring how itemName/itemSku already snapshot the base item at order time.
     await this.prisma.pOLineItem.create({
       data: {
         id: `line-${Date.now()}`,
         poId: po.id,
         supplierItemId: body.supplierItemId,
+        supplierItemVariantId: body.variantId ?? null,
         qty: body.quantity,
         unitPrice: quote.unitPrice,
         subtotal: quote.subtotal,
+        itemName: item.name,
+        itemSku: item.sku,
+        variantName: quote.variant?.name ?? null,
+        variantSku: quote.variant?.sku ?? null,
       },
     });
 

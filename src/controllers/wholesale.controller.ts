@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Body, Query, Headers, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, Post, Patch, Delete, Body, Query, Req, UseGuards } from "@nestjs/common";
 import { WholesaleService } from "../services/wholesale.service";
 import { AgentAuthGuard } from "../guards/agent-auth.guard";
 
@@ -99,18 +99,46 @@ export class WholesaleController {
   @Post("cart/add")
   @UseGuards(AgentAuthGuard)
   addToCart(
-    @Headers("authorization") authorization: string | undefined,
+    @Req() req: any,
     @Body() body: { supplierItemId: string; variantId?: string; quantity: number }
   ) {
-    return this.wholesale.addToCart(authorization, body);
+    return this.wholesale.addToCart(req.agent, body);
   }
 
   @Post("orders/start")
   @UseGuards(AgentAuthGuard)
   startOrder(
-    @Headers("authorization") authorization: string | undefined,
+    @Req() req: any,
     @Body() body: { supplierItemId: string; variantId?: string; quantity: number }
   ) {
-    return this.wholesale.startOrder(authorization, body);
+    return this.wholesale.startOrder(req.agent, body);
+  }
+
+  @Get("cart")
+  @UseGuards(AgentAuthGuard)
+  getCart(@Req() req: any) {
+    return this.wholesale.getCart(req.agent);
+  }
+
+  @Patch("cart/lines/:lineId")
+  @UseGuards(AgentAuthGuard)
+  updateCartLine(
+    @Req() req: any,
+    @Param("lineId") lineId: string,
+    @Body() body: { quantity: number }
+  ) {
+    return this.wholesale.updateCartLine(req.agent, lineId, body.quantity);
+  }
+
+  @Delete("cart/lines/:lineId")
+  @UseGuards(AgentAuthGuard)
+  removeCartLine(@Req() req: any, @Param("lineId") lineId: string) {
+    return this.wholesale.removeCartLine(req.agent, lineId);
+  }
+
+  @Get("cart/validate")
+  @UseGuards(AgentAuthGuard)
+  validateCart(@Req() req: any) {
+    return this.wholesale.validateCart(req.agent);
   }
 }

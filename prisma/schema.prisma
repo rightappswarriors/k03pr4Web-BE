@@ -70,6 +70,7 @@ model Agent {
   RfqOffer                 RfqOffer[]
   SupplierOrganizationLink SupplierOrganizationLink[]
   SupplierOutletLink       SupplierOutletLink[]
+  WholesaleCart            WholesaleCart?
 
   @@index([agentType, verificationStatus])
   @@index([organizationId])
@@ -1053,6 +1054,7 @@ model Organization {
   User                                                                          User[]
   VatType                                                                       VatType[]
   Wallet                                                                        Wallet?
+  WholesaleCartLine                                                             WholesaleCartLine[]
 
   @@index([accountStatus])
 }
@@ -1906,8 +1908,46 @@ model SupplierItem {
   WholesalePackaging        WholesalePackaging?
   WholesaleQuote            WholesaleQuote[]
   WholesaleShipping         WholesaleShipping?
+  WholesaleCartLine         WholesaleCartLine[]
 
   @@unique([catalogId, sku])
+}
+
+model WholesaleCart {
+  id                String              @id @default(cuid())
+  agentId           String              @unique
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  Agent             Agent               @relation(fields: [agentId], references: [id])
+  WholesaleCartLine WholesaleCartLine[]
+}
+
+model WholesaleCartLine {
+  id                    String               @id @default(cuid())
+  cartId                String
+  supplierItemId        String
+  supplierItemVariantId String?
+  supplierOrgId         Int
+  itemName              String
+  itemSku               String?
+  variantName           String?
+  variantSku            String?
+  unit                  String
+  quantity              Int
+  unitPrice             Float
+  tierMinQty            Int?
+  tierMaxQty            Int?
+  subtotal              Float
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  WholesaleCart         WholesaleCart        @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  SupplierItem          SupplierItem         @relation(fields: [supplierItemId], references: [id])
+  SupplierItemVariant   SupplierItemVariant? @relation(fields: [supplierItemVariantId], references: [id])
+  Organization          Organization         @relation(fields: [supplierOrgId], references: [id])
+
+  @@unique([cartId, supplierItemId, supplierItemVariantId])
+  @@index([cartId])
+  @@index([supplierOrgId])
 }
 
 model WholesaleCustomization {
@@ -2994,6 +3034,7 @@ model SupplierItemVariant {
   SupplierItemVariantValue   SupplierItemVariantValue[]
   PriceTier                  PriceTier[]
   POLineItem                 POLineItem[]
+  WholesaleCartLine          WholesaleCartLine[]
 
   @@index([supplierItemId])
   @@index([supplierItemId, isActive])

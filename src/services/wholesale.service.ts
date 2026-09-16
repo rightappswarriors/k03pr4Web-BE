@@ -3,6 +3,25 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { PrismaService } from "./prisma.service";
 import { CustomerAuthService } from "./customer-auth.service";
 
+type PriceQuoteResult = {
+  unitPrice: number;
+  subtotal: number;
+  tierApplied: {
+    id: string;
+    minQty: number;
+    maxQty?: number;
+    price: number;
+    currency: string;
+  } | null;
+  variant?: {
+    id: string;
+    sku: string | null;
+    name: string;
+    availableQty: number;
+  };
+  moq?: number;
+};
+
 @Injectable()
 export class WholesaleService {
   constructor(
@@ -391,7 +410,7 @@ export class WholesaleService {
     return null;
   }
 
-  async priceQuote(id: string, body: { quantity: number; variantId?: string }) {
+  async priceQuote(id: string, body: { quantity: number; variantId?: string }): Promise<PriceQuoteResult> {
     const { quantity, variantId } = body;
 
     const item = await this.prisma.supplierItem.findUnique({
@@ -406,26 +425,80 @@ export class WholesaleService {
       throw new NotFoundException({ error: "Supplier item not found" });
     }
 
-    // If variant selected: use variant's flat price, ignore tiers
+    // If variant selected: variant is authoritative for identity/inventory,
+    // and pricing priority is: variant's own tier → variant's own price →
+    // parent item's tier → parent item's base price. Parent pricing is a
+    // fallback for when the variant has no pricing of its own — it never
+    // overrides a variant that does.
     if (variantId) {
       const variant = await this.prisma.supplierItemVariant.findUnique({
         where: { id: variantId, deletedAt: null },
+        include: {
+          PriceTier: { where: { deletedAt: null }, orderBy: { minQty: "asc" } },
+        },
       });
 
       if (!variant) {
         throw new NotFoundException({ error: "Variant not found" });
       }
+      if (variant.supplierItemId !== id) {
+        throw new BadRequestException({ error: "Variant does not belong to this product" });
+      }
       if (!variant.isActive) {
         throw new BadRequestException({ error: "Variant is not available" });
+      }
+      if (quantity < item.moq) {
+        throw new BadRequestException({ error: `Minimum order quantity is ${item.moq}` });
       }
       if (variant.availableQty < quantity) {
         throw new BadRequestException({ error: `Only ${variant.availableQty} units available for this variant` });
       }
 
+      // Step 1: variant's own tiers
+      const variantPriceTiers = variant.PriceTier.map((t) => ({
+        minQty: t.minQty,
+        maxQty: t.maxQty ?? null,
+        price: t.price,
+      }));
+      const variantTierApplied = this.computeBracketPrice(quantity, variantPriceTiers);
+
+      // Step 3: parent's own tiers (item.PriceTier already only includes
+      // item-level rows since it's queried via SupplierItem's own relation,
+      // which is unaffected by the new variant-scoped rows)
+      const parentPriceTiers = item.PriceTier.map((t) => ({
+        minQty: t.minQty,
+        maxQty: t.maxQty ?? null,
+        price: t.price,
+      }));
+      const parentTierApplied = this.computeBracketPrice(quantity, parentPriceTiers);
+
+      // Priority: variant tier → variant.price → parent tier → parent base price
+      const tierApplied = variantTierApplied ?? parentTierApplied;
+      const unitPrice =
+        variantTierApplied?.price ??
+        (variant.price > 0 ? variant.price : undefined) ??
+        parentTierApplied?.price ??
+        item.unitPrice;
+
       return {
-        unitPrice: variant.price,
-        subtotal: variant.price * quantity,
-        tierApplied: null,
+        unitPrice,
+        subtotal: unitPrice * quantity,
+        tierApplied: tierApplied
+          ? {
+            id: tierApplied.minQty.toString(),
+            minQty: tierApplied.minQty,
+            maxQty: tierApplied.maxQty ?? undefined,
+            price: tierApplied.price,
+            currency: "PHP",
+          }
+          : null,
+        variant: {
+          id: variant.id,
+          sku: variant.sku,
+          name: variant.name,
+          availableQty: variant.availableQty,
+        },
+        moq: item.moq,
       };
     }
 
@@ -553,15 +626,21 @@ export class WholesaleService {
       },
     });
 
-    // Create POLineItem
+    // Create POLineItem — snapshot the variant (if any) alongside the base item,
+    // mirroring how itemName/itemSku already snapshot the base item at order time.
     await this.prisma.pOLineItem.create({
       data: {
         id: `line-${Date.now()}`,
         poId: po.id,
         supplierItemId: body.supplierItemId,
+        supplierItemVariantId: body.variantId ?? null,
         qty: body.quantity,
         unitPrice: quote.unitPrice,
         subtotal: quote.subtotal,
+        itemName: item.name,
+        itemSku: item.sku,
+        variantName: quote.variant?.name ?? null,
+        variantSku: quote.variant?.sku ?? null,
       },
     });
 

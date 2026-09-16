@@ -1197,17 +1197,23 @@ model OutletStaff {
 }
 
 model POLineItem {
-  id              String        @id
-  poId            String
-  supplierItemId  String
-  qty             Int
-  unitPrice       Float
-  subtotal        Float
-  itemName        String?
-  itemSku         String?
-  itemDescription String?
-  PurchaseOrder   PurchaseOrder @relation(fields: [poId], references: [id])
-  SupplierItem    SupplierItem  @relation(fields: [supplierItemId], references: [id])
+  id                    String               @id
+  poId                  String
+  supplierItemId        String
+  supplierItemVariantId String?
+  qty                   Int
+  unitPrice             Float
+  subtotal              Float
+  itemName              String?
+  itemSku               String?
+  itemDescription       String?
+  variantName           String?
+  variantSku            String?
+  PurchaseOrder         PurchaseOrder        @relation(fields: [poId], references: [id])
+  SupplierItem          SupplierItem         @relation(fields: [supplierItemId], references: [id])
+  SupplierItemVariant   SupplierItemVariant? @relation(fields: [supplierItemVariantId], references: [id])
+
+  @@index([supplierItemVariantId])
 }
 
 model Page {
@@ -1345,18 +1351,21 @@ model PositionPermission {
 }
 
 model PriceTier {
-  id             String       @id
-  supplierItemId String
-  minQty         Int
-  price          Float
-  createdAt      DateTime     @default(now())
-  currency       String       @default("PHP")
-  deletedAt      DateTime?
-  maxQty         Int?
-  updatedAt      DateTime
-  SupplierItem   SupplierItem @relation(fields: [supplierItemId], references: [id], onDelete: Cascade)
+  id                    String               @id
+  supplierItemId        String
+  supplierItemVariantId String?
+  minQty                Int
+  price                 Float
+  createdAt             DateTime             @default(now())
+  currency              String               @default("PHP")
+  deletedAt             DateTime?
+  maxQty                Int?
+  updatedAt             DateTime
+  SupplierItem          SupplierItem         @relation(fields: [supplierItemId], references: [id], onDelete: Cascade)
+  SupplierItemVariant   SupplierItemVariant? @relation(fields: [supplierItemVariantId], references: [id], onDelete: Cascade)
 
   @@index([supplierItemId])
+  @@index([supplierItemVariantId])
 }
 
 model PromoType {
@@ -2983,6 +2992,8 @@ model SupplierItemVariant {
   SupplierItem               SupplierItem               @relation(fields: [supplierItemId], references: [id], onDelete: Cascade)
   SupplierItemRVariantImages SupplierItemVariantImage[]
   SupplierItemVariantValue   SupplierItemVariantValue[]
+  PriceTier                  PriceTier[]
+  POLineItem                 POLineItem[]
 
   @@index([supplierItemId])
   @@index([supplierItemId, isActive])
